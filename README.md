@@ -1,3 +1,14 @@
+> ⚠️ Unofficial community fork — Blender 5 compatibility and maintenance.
+
+This repository is an **unofficial, community-maintained fork** of the original
+[TexTools for Blender](https://github.com/franMarz/TexTools-Blender), created
+solely to keep the add-on working on newer Blender versions (5.x/6.x) and to fix
+blocking issues.
+
+All credit for TexTools’ design, features, and workflow belongs to the original
+authors and contributors. If the upstream project becomes active again, I’d be
+happy to contribute changes back or retire this fork in favor of the original.
+
 # TexTools for Blender #
 
 TexTools is a free addon for Blender with a set of professional UV and Texture tools. Fully compatible with Blender 3.2 and later, most features should work for Blender versions as old as 2.8, including: UV Layout tools (Align, Rectify, Sort, Randomize...), multiple out-of-the-box Texture Baking modes, Texel Density tools, smart UV Selection operators, Color ID tools and some UV related Mesh creation utilities.
