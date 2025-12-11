@@ -2,7 +2,7 @@
 
 This repository is an **unofficial, community-maintained fork** of the original
 [TexTools for Blender](https://github.com/franMarz/TexTools-Blender), created
-solely to keep the add-on working on newer Blender versions (5.x/6.x) and to fix
+solely to keep the add-on working on newer Blender versions (5.x) and to fix
 blocking issues.
 
 All credit for TexTools’ design, features, and workflow belongs to the original
