@@ -1690,14 +1690,6 @@ classes = (
 
 
 def register():
-	# Force reload by kaio: https://devtalk.blender.org/t/blender-2-91-addon-dev-workflow/15320/6
-	from sys import modules
-	from importlib import reload
-	modules[__name__] = reload(modules[__name__])
-	for name, module in modules.copy().items():
-		if name.startswith(f"{__package__}."):
-			globals()[name] = reload(module)
-
 	for c in classes:
 		bpy.utils.register_class(c)
 
