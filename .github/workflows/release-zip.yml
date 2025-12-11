@@ -1,0 +1,42 @@
+name: Release TexTools ZIP
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Create addon zip
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          ADDON_DIR="TexTools"
+
+          ZIP_NAME="${ADDON_DIR}-${TAG_NAME}.zip"
+
+          git archive \
+            --format=zip \
+            --prefix="${ADDON_DIR}/" \
+            HEAD \
+            -o "$ZIP_NAME"
+
+          echo "ZIP_NAME=$ZIP_NAME" >> "$GITHUB_ENV"
+          ls -lh "$ZIP_NAME"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: ${{ env.ZIP_NAME }}
+          generate_release_notes: true
