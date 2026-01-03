@@ -544,6 +544,10 @@ def bake(self, mode, size, bake_force, sampling_scale, circular_report, color_re
             # Bake each low poly object in this set
             for i in range(len(bset.objects_low)):
                 obj_low = bset.objects_low[i]
+                try:
+                    if obj_low.name not in bpy.data.objects: raise ReferenceError
+                except ReferenceError:
+                    continue
                 obj_cage = None if i >= len(bset.objects_cage) else bset.objects_cage[i]
 
                 # Disable hide render
