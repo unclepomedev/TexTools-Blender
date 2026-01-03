@@ -48,37 +48,34 @@ def create_uv_mesh(self, context, obj, sk_create=True, bool_scale=True, delete_u
             for i in range(len(mesh_obj.data.shape_keys.key_blocks)):
                 bpy.context.object.active_shape_key_index = 0
                 bpy.ops.object.shape_key_remove(all=False)
-    if sk_create:
-        mesh_obj.shape_key_add(name="model", from_mix=True)
-        mesh_obj.shape_key_add(name="uv", from_mix=True)
-        mesh_obj.active_shape_key_index = 1
-        bpy.context.active_object.active_shape_key.value = 1
 
     bpy.ops.object.mode_set(mode='EDIT')
 
-    area = next((a for a in context.screen.areas if a.type == 'IMAGE_EDITOR'), None)
     selection_mode = bpy.context.scene.tool_settings.uv_select_mode
     pre_sync = bpy.context.scene.tool_settings.use_uv_select_sync
+    uv_area = next((a for a in context.screen.areas if a.type == 'IMAGE_EDITOR'), None)
     if pre_sync == True:
         bpy.context.scene.tool_settings.use_uv_select_sync = False
-        if area:
-            with context.temp_override(area=area):
-                bpy.ops.uv.select_all(action='SELECT')
+        if uv_area:
+            try:
+                with context.temp_override(area=uv_area):
+                    bpy.ops.uv.select_all(action='SELECT')
+            except:
+                pass
 
-    # Select all if OBJECT mode
     if mode == 'OBJECT':
         bpy.ops.mesh.select_all(action='SELECT')
-        if area:
-            with context.temp_override(area=area):
-                bpy.ops.uv.select_all(action='SELECT')
+        if uv_area:
+            try:
+                with context.temp_override(area=uv_area):
+                    bpy.ops.uv.select_all(action='SELECT')
+            except:
+                pass
 
-    # Select only UV faces
-    if area:
-        with context.temp_override(area=area):
-            bpy.ops.uv.select_split()
-    else:
+    if uv_area:
         try:
-            bpy.ops.uv.select_split()
+            with context.temp_override(area=uv_area):
+                bpy.ops.uv.select_split()
         except:
             pass
 
@@ -121,42 +118,51 @@ def create_uv_mesh(self, context, obj, sk_create=True, bool_scale=True, delete_u
 
     bpy.context.scene.tool_settings.use_uv_select_sync = True
     op_select_islands_outline.select_outline(self, context, bm, uv_layers)
-    bpy.ops.mesh.edge_split(type='EDGE')
     bmesh.update_edit_mesh(mesh_obj.data)
 
-    bpy.context.scene.tool_settings.use_uv_select_sync = False
-    bpy.ops.mesh.select_all(action='SELECT')  # TODO REFINE
-    if pre_sync == True:
-        bpy.ops.uv.select_all(action='SELECT')
-
+    scale = 1.0
     if bool_scale:
-        length_view = 0
-        length_uv = 0
+        length_view = 0.0
+        length_uv = 0.0
         for faces in faces_by_island:
             for face in faces:
-                length_uv += (face.loops[0].link_loop_next[uv_layers].uv - face.loops[0][uv_layers].uv).length
-                length_view += face.loops[0].edge.calc_length()
-
-    # Reshape mesh to mimic UVs
-    for faces in faces_by_island:
-        for face in faces:
-            for loop in face.loops:
-                loop.vert.co = (loop[uv_layers].uv.x, loop[uv_layers].uv.y, 0)
-
-    # Scale
-    if bool_scale:
-        if length_uv > 0 and length_view > 0:
+                try:
+                    length_uv += (face.loops[0].link_loop_next[uv_layers].uv - face.loops[0][uv_layers].uv).length
+                    length_view += face.loops[0].edge.calc_length()
+                except:
+                    pass
+        if length_uv > 0:
             scale = length_view / length_uv
-        else:
-            scale = 1
 
-        scaled_verts = set()
-        for faces in faces_by_island:
-            for face in faces:
-                for loop in face.loops:
-                    if loop.vert not in scaled_verts:
-                        loop.vert.co *= scale
-                        scaled_verts.add(loop.vert)
+    bm.free()
+
+    bpy.ops.mesh.edge_split(type='EDGE')
+    bpy.ops.object.mode_set(mode='OBJECT')
+
+    if sk_create:
+        if not mesh_obj.data.shape_keys:
+            mesh_obj.shape_key_add(name="model", from_mix=True)
+        mesh_obj.shape_key_add(name="uv", from_mix=True)
+        mesh_obj.active_shape_key_index = 1
+        mesh_obj.data.shape_keys.key_blocks["uv"].value = 1.0
+
+    bpy.ops.object.mode_set(mode='EDIT')
+
+    bm = bmesh.from_edit_mesh(mesh_obj.data)
+    uv_layers = bm.loops.layers.uv.verify()
+
+    visited_verts = set()
+    for face in bm.faces:
+        for loop in face.loops:
+            vert = loop.vert
+            if vert not in visited_verts:
+                u = loop[uv_layers].uv.x * scale
+                v = loop[uv_layers].uv.y * scale
+                vert.co = (u, v, 0.0)
+                visited_verts.add(vert)
+
+    bmesh.update_edit_mesh(mesh_obj.data)
+    bpy.context.scene.tool_settings.use_uv_select_sync = False
 
     # bm.select_flush(True)
     bpy.context.scene.tool_settings.use_uv_select_sync = pre_sync
