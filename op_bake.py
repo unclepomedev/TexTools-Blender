@@ -543,11 +543,28 @@ def bake(self, mode, size, bake_force, sampling_scale, circular_report, color_re
 
             # Bake each low poly object in this set
             for i in range(len(bset.objects_low)):
-                obj_low = bset.objects_low[i]
+                obj_low = None
+
                 try:
-                    if obj_low.name not in bpy.data.objects: raise ReferenceError
-                except ReferenceError:
-                    continue
+                    candidate = bset.objects_low[i]
+                    if candidate.name in bpy.data.objects:
+                        obj_low = candidate
+                except (ReferenceError, AttributeError) as e:
+                    print(f"Warning: Could not access low poly object at index {i}: {e}")
+
+                if obj_low is None:
+                    if active and active.name in bpy.data.objects:
+                        obj_low = active
+                    else:
+                        continue
+
+                try:
+                    obj_low.hide_render = False
+                    obj_low.hide_viewport = False
+                    obj_low.select_set(True)
+                    bpy.context.view_layer.objects.active = obj_low
+                except:
+                    pass
                 obj_cage = None if i >= len(bset.objects_cage) else bset.objects_cage[i]
 
                 # Disable hide render
