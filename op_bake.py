@@ -303,6 +303,10 @@ def bake(self, mode, size, bake_force, sampling_scale, circular_report, color_re
 
     for bset in sets:
         for obj in (bset.objects_low + bset.objects_high + bset.objects_float):
+            try:
+                if obj.name not in bpy.data.objects: raise ReferenceError
+            except ReferenceError:
+                continue
             if obj not in previous_materials:
                 previous_materials[obj] = []
                 for i, mtl in enumerate(obj.data.materials):
