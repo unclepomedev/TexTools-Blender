@@ -549,8 +549,8 @@ def bake(self, mode, size, bake_force, sampling_scale, circular_report, color_re
                     candidate = bset.objects_low[i]
                     if candidate.name in bpy.data.objects:
                         obj_low = candidate
-                except:
-                    pass
+                except (ReferenceError, AttributeError) as e:
+                    print(f"Warning: Could not access low poly object at index {i}: {e}")
 
                 if obj_low is None:
                     if active and active.name in bpy.data.objects:
