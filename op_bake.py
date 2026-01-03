@@ -334,22 +334,35 @@ def bake(self, mode, size, bake_force, sampling_scale, circular_report, color_re
             obj.data.materials.append(bpy.data.materials[material_loaded])
 
     for bset in settings.sets:
+        valid_low = []
+        for obj in bset.objects_low:
+            try:
+                if obj.name in bpy.data.objects: valid_low.append(obj)
+            except ReferenceError:
+                continue
+
+        valid_high_float = []
+        for obj in (bset.objects_high + bset.objects_float):
+            try:
+                if obj.name in bpy.data.objects: valid_high_float.append(obj)
+            except ReferenceError:
+                continue
         if (len(bset.objects_high) + len(bset.objects_float)) == 0:
-            tiles.append(utilities_uv.get_UDIM_tiles(bset.objects_low))
-            for obj in bset.objects_low:
+            tiles.append(utilities_uv.get_UDIM_tiles(valid_low))
+            for obj in valid_low:
                 if material_loaded:
                     use_material_loaded(obj)
                 else:
                     use_copied_mtls(obj)
         else:
-            tiles.append(utilities_uv.get_UDIM_tiles(bset.objects_high + bset.objects_float))
+            tiles.append(utilities_uv.get_UDIM_tiles(valid_high_float))
             if material_loaded:
                 for obj in bset.objects_low:
                     use_copied_mtls(obj)
                 for obj in (bset.objects_high + bset.objects_float):
                     use_material_loaded(obj)
             else:
-                for obj in (bset.objects_low + bset.objects_high + bset.objects_float):
+                for obj in (valid_low + valid_high_float):
                     use_copied_mtls(obj)
 
     relinkedMaterials = []
