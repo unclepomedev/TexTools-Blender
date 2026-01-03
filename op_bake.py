@@ -489,6 +489,10 @@ def bake(self, mode, size, bake_force, sampling_scale, circular_report, color_re
             if (len(bset.objects_high) + len(bset.objects_float)) == 0:
                 # Low poly bake: Assign material to lowpoly or tune the existing material/s
                 for obj in bset.objects_low:
+                    try:
+                        if obj.name not in bpy.data.objects: raise ReferenceError
+                    except ReferenceError:
+                        continue
                     if mode in {'ao', 'normal_tangent', 'normal_object', 'curvature', 'environment', 'uv', 'shadow',
                                 'combined'}:
                         # Clean unused material slots?
@@ -513,6 +517,10 @@ def bake(self, mode, size, bake_force, sampling_scale, circular_report, color_re
             else:
                 # High to low poly: Low poly requires any material to bake into image
                 for obj in bset.objects_low:
+                    try:
+                        if obj.name not in bpy.data.objects: raise ReferenceError
+                    except ReferenceError:
+                        continue
                     if len(obj.material_slots) == 0 or (not all(obj.data.materials)):
                         if "TT_bake_node" not in bpy.data.materials:
                             bpy.data.materials.new(name="TT_bake_node")
@@ -525,6 +533,10 @@ def bake(self, mode, size, bake_force, sampling_scale, circular_report, color_re
                     setup_image_bake_node(obj, bakeReadyMaterials, image_name, previous_image_name, imagecopy_name)
                 # Assign material to highpoly or tune the existing material/s
                 for obj in (bset.objects_high + bset.objects_float):
+                    try:
+                        if obj.name not in bpy.data.objects: raise ReferenceError
+                    except ReferenceError:
+                        continue
                     assign_tune_materials(obj)
 
             print("Bake", bset.name)
