@@ -150,18 +150,29 @@ def selection_store(bm=None, uv_layers=None, return_selected_UV_faces=False, ret
         for loop in face.loops:
             if loop.edge.seam:
                 settings.seam_edges.add(loop.edge)
-            if get_loop_selection(loop, uv_layers):
+
+            is_selected = get_loop_selection(loop, uv_layers)
+
+            if not is_selected and face.select:
+                is_selected = True
+
+            if is_selected:
                 n_selected_loops += 1
                 settings.selection_uv_loops.add((face.index, loop.vert.index))
                 if return_selected_faces_edges or return_selected_faces_loops:
                     face_selected_loops.append(loop)
 
-        if return_selected_UV_faces and n_selected_loops == len(face.loops) and face.select:
-            selected_faces.add(face)
-        elif return_selected_faces_edges and n_selected_loops == 2 and face.select:
-            selected_faces_loops.update({face: face_selected_loops})
-        elif return_selected_faces_loops and n_selected_loops > 0 and face.select:
-            selected_faces_loops.update({face: face_selected_loops})
+        if return_selected_UV_faces:
+            if face.select:
+                selected_faces.add(face)
+
+        elif return_selected_faces_edges:
+            if n_selected_loops >= 1:
+                selected_faces_loops.update({face: face_selected_loops})
+
+        elif return_selected_faces_loops:
+            if n_selected_loops > 0:
+                selected_faces_loops.update({face: face_selected_loops})
 
     if return_selected_UV_faces:
         return selected_faces
@@ -447,7 +458,8 @@ def get_selected_islands(bm, uv_layers, selected=True, extend_selection_to_islan
         else:
             for face in faces:
                 if face.select:
-                    face.tag = all(get_loop_selection(l, uv_layers) for l in face.loops)
+                    face.tag = True
+                    # face.tag = all(get_loop_selection(l, uv_layers) for l in face.loops)
                     continue
                 face.tag = False
     else:
@@ -488,8 +500,7 @@ def get_selected_islands(bm, uv_layers, selected=True, extend_selection_to_islan
                         if ll[uv_layers].uv != l[uv_layers].uv:
                             continue
                         if (l.link_loop_next[uv_layers].uv == ll.link_loop_prev[uv_layers].uv) or \
-                                (ll.link_loop_next[uv_layers].uv == l.link_loop_prev[
-                                    uv_layers].uv):  # Skip non-manifold
+                                (ll.link_loop_next[uv_layers].uv == l.link_loop_prev[uv_layers].uv):
                             temp.append(ll.face)
                             ll.face.tag = False
 
@@ -508,7 +519,7 @@ def get_selected_islands(bm, uv_layers, selected=True, extend_selection_to_islan
                     continue
             else:
                 for face in island:
-                    if all(get_loop_selection(l, uv_layers) for l in face.loops):
+                    if face.select:
                         break
                 else:
                     island = set()
@@ -519,13 +530,23 @@ def get_selected_islands(bm, uv_layers, selected=True, extend_selection_to_islan
     return islands
 
 
+def get_uv_context_override():
+    for area in bpy.context.screen.areas:
+        if area.type == 'IMAGE_EDITOR':
+            for region in area.regions:
+                if region.type == 'WINDOW':
+                    return {'window': bpy.context.window, 'screen': bpy.context.screen, 'area': area, 'region': region}
+    return None
+
+
 def getFacesIslands(bm, uv_layers, faces, islands, disordered_island_faces):
-    area = next((a for a in bpy.context.screen.areas if a.type == 'IMAGE_EDITOR'), None)
-    if not area:
+    override = get_uv_context_override()
+
+    if not override:
         print("Warning: No UV Editor found. Island detection skipped.")
         return
 
-    with bpy.context.temp_override(area=area):
+    with bpy.context.temp_override(**override):
         for face in faces:
             if face in disordered_island_faces:
                 bpy.ops.uv.select_all(action='DESELECT')
@@ -564,16 +585,16 @@ def getSelectionIslands(bm, uv_layers, extend_selection_to_islands=False, select
     if not selected_faces:
         return []
 
-    area = next((a for a in bpy.context.screen.areas if a.type == 'IMAGE_EDITOR'), None)
-    if not area:
+    override = get_uv_context_override()
+    if not override:
         print("Warning: No UV Editor found. Selection skipped.")
         return []
 
-    with bpy.context.temp_override(area=area):
+    with bpy.context.temp_override(**override):
         # Select islands
         if extend_selection_to_islands:
             bpy.ops.uv.select_linked()
-            disordered_island_faces = {f for f in bm.faces if get_loop_selection(f.loops[0], uv_layers) and f.select}
+            disordered_island_faces = {f for f in bm.faces if get_loop_selection(f.loops[0], uv_layers)}
         else:
             disordered_island_faces = selected_faces.copy()
 
@@ -594,58 +615,68 @@ def getSelectedUnselectedIslands(bm, uv_layers, selected_faces=None, target_face
     if selected_faces is None:
         return [], []
 
-    # Collect selected UV islands
-    selected_islands = []
-    bpy.ops.uv.select_linked()
-    disordered_islands_selected = {f for f in bm.faces if get_loop_selection(f.loops[0], uv_layers) and f.select}
+    override = get_uv_context_override()
+    if not override:
+        return [], []
 
-    getFacesIslands(bm, uv_layers, selected_faces, selected_islands, disordered_islands_selected)
+    with bpy.context.temp_override(**override):
+        # Collect selected UV islands
+        selected_islands = []
+        bpy.ops.uv.select_linked()
+        disordered_islands_selected = {f for f in bm.faces if get_loop_selection(f.loops[0], uv_layers) and f.select}
 
-    # Collect target UV islands
-    if target_faces is None:
-        return selected_islands, []
+        getFacesIslands(bm, uv_layers, selected_faces, selected_islands, disordered_islands_selected)
 
-    target_islands = []
-    target_faces.difference_update(disordered_islands_selected)
-    bpy.ops.uv.select_all(action='DESELECT')
-    for f in target_faces:
-        set_loop_selection(f.loops[0], uv_layers, True)
-    bpy.ops.uv.select_linked()
-    disordered_islands_targets = {f for f in bm.faces if get_loop_selection(f.loops[0], uv_layers) and f.select}
+        # Collect target UV islands
+        if target_faces is None:
+            return selected_islands, []
 
-    getFacesIslands(bm, uv_layers, target_faces, target_islands, disordered_islands_targets)
-
-    if restore_selected:
+        target_islands = []
+        target_faces.difference_update(disordered_islands_selected)
         bpy.ops.uv.select_all(action='DESELECT')
-        set_selected_faces(selected_faces, bm, uv_layers)
+        for f in target_faces:
+            set_loop_selection(f.loops[0], uv_layers, True)
+        bpy.ops.uv.select_linked()
+        disordered_islands_targets = {f for f in bm.faces if get_loop_selection(f.loops[0], uv_layers) and f.select}
+
+        getFacesIslands(bm, uv_layers, target_faces, target_islands, disordered_islands_targets)
+
+        if restore_selected:
+            bpy.ops.uv.select_all(action='DESELECT')
+            set_selected_faces(selected_faces, bm, uv_layers)
 
     return selected_islands, target_islands
 
 
 def getSelectionFacesIslands(bm, uv_layers, selected_faces_loops):
-    # Select islands
-    bpy.ops.uv.select_linked()
-    disordered_island_faces = {f for f in bm.faces if get_loop_selection(f.loops[0], uv_layers) and f.select}
+    override = get_uv_context_override()
+    if not override:
+        return {}, selected_faces_loops
 
-    # Collect UV islands
-    selected_faces_islands = {}
-    to_remove = set()
+    with bpy.context.temp_override(**override):
+        # Select islands
+        bpy.ops.uv.select_linked()
+        disordered_island_faces = {f for f in bm.faces if get_loop_selection(f.loops[0], uv_layers) and f.select}
 
-    for face in selected_faces_loops.keys():
-        if face not in disordered_island_faces:
-            to_remove.add(face)
-        else:
-            bpy.ops.uv.select_all(action='DESELECT')
-            set_loop_selection(face.loops[0], uv_layers, True)
-            bpy.ops.uv.select_linked()
+        # Collect UV islands
+        selected_faces_islands = {}
+        to_remove = set()
 
-            face_island = {f for f in disordered_island_faces if get_loop_selection(f.loops[0], uv_layers)}
-            disordered_island_faces.difference_update(face_island)
+        for face in selected_faces_loops.keys():
+            if face not in disordered_island_faces:
+                to_remove.add(face)
+            else:
+                bpy.ops.uv.select_all(action='DESELECT')
+                set_loop_selection(face.loops[0], uv_layers, True)
+                bpy.ops.uv.select_linked()
 
-            selected_faces_islands.update({face: face_island})
+                face_island = {f for f in disordered_island_faces if get_loop_selection(f.loops[0], uv_layers)}
+                disordered_island_faces.difference_update(face_island)
 
-    for face in to_remove:
-        selected_faces_loops.pop(face)
+                selected_faces_islands.update({face: face_island})
+
+        for face in to_remove:
+            selected_faces_loops.pop(face)
 
     return selected_faces_islands, selected_faces_loops
 
