@@ -150,18 +150,29 @@ def selection_store(bm=None, uv_layers=None, return_selected_UV_faces=False, ret
         for loop in face.loops:
             if loop.edge.seam:
                 settings.seam_edges.add(loop.edge)
-            if get_loop_selection(loop, uv_layers):
+
+            is_selected = get_loop_selection(loop, uv_layers)
+
+            if not is_selected and face.select:
+                is_selected = True
+
+            if is_selected:
                 n_selected_loops += 1
                 settings.selection_uv_loops.add((face.index, loop.vert.index))
                 if return_selected_faces_edges or return_selected_faces_loops:
                     face_selected_loops.append(loop)
 
-        if return_selected_UV_faces and n_selected_loops == len(face.loops) and face.select:
-            selected_faces.add(face)
-        elif return_selected_faces_edges and n_selected_loops == 2 and face.select:
-            selected_faces_loops.update({face: face_selected_loops})
-        elif return_selected_faces_loops and n_selected_loops > 0 and face.select:
-            selected_faces_loops.update({face: face_selected_loops})
+        if return_selected_UV_faces:
+            if face.select:
+                selected_faces.add(face)
+
+        elif return_selected_faces_edges:
+            if n_selected_loops >= 1:
+                selected_faces_loops.update({face: face_selected_loops})
+
+        elif return_selected_faces_loops:
+            if n_selected_loops > 0:
+                selected_faces_loops.update({face: face_selected_loops})
 
     if return_selected_UV_faces:
         return selected_faces
@@ -583,7 +594,7 @@ def getSelectionIslands(bm, uv_layers, extend_selection_to_islands=False, select
         # Select islands
         if extend_selection_to_islands:
             bpy.ops.uv.select_linked()
-            disordered_island_faces = {f for f in bm.faces if get_loop_selection(f.loops[0], uv_layers) and f.select}
+            disordered_island_faces = {f for f in bm.faces if get_loop_selection(f.loops[0], uv_layers)}
         else:
             disordered_island_faces = selected_faces.copy()
 
