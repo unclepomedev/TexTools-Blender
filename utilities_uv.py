@@ -447,7 +447,8 @@ def get_selected_islands(bm, uv_layers, selected=True, extend_selection_to_islan
         else:
             for face in faces:
                 if face.select:
-                    face.tag = all(get_loop_selection(l, uv_layers) for l in face.loops)
+                    face.tag = True
+                    # face.tag = all(get_loop_selection(l, uv_layers) for l in face.loops)
                     continue
                 face.tag = False
     else:
@@ -488,8 +489,7 @@ def get_selected_islands(bm, uv_layers, selected=True, extend_selection_to_islan
                         if ll[uv_layers].uv != l[uv_layers].uv:
                             continue
                         if (l.link_loop_next[uv_layers].uv == ll.link_loop_prev[uv_layers].uv) or \
-                                (ll.link_loop_next[uv_layers].uv == l.link_loop_prev[
-                                    uv_layers].uv):  # Skip non-manifold
+                                (ll.link_loop_next[uv_layers].uv == l.link_loop_prev[uv_layers].uv):
                             temp.append(ll.face)
                             ll.face.tag = False
 
@@ -508,7 +508,7 @@ def get_selected_islands(bm, uv_layers, selected=True, extend_selection_to_islan
                     continue
             else:
                 for face in island:
-                    if all(get_loop_selection(l, uv_layers) for l in face.loops):
+                    if face.select:
                         break
                 else:
                     island = set()
