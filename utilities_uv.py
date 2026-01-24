@@ -39,7 +39,7 @@ def set_loop_edge_selection(loop, uv_layers, value):
 
 
 def multi_object_loop(func, *args, need_results=False, **kwargs):
-    selected_obs = [ob for ob in bpy.context.selected_objects if ob.type == 'MESH']
+    selected_obs = [ob for ob in bpy.context.selected_objects if ob.type == "MESH"]
     preactiv_name = None
     if bpy.context.view_layer.objects.active:
         preactiv_name = bpy.context.view_layer.objects.active.name
@@ -65,11 +65,12 @@ def multi_object_loop(func, *args, need_results=False, **kwargs):
         multi_object_loop_stop = False
         premode = bpy.context.active_object.mode
 
-        bpy.ops.object.mode_set(mode='EDIT', toggle=False)
-        unique_selected_obs = [ob for ob in bpy.context.objects_in_mode_unique_data if
-                               ob.type == 'MESH' and ob.select_get()]
-        bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
-        bpy.ops.object.select_all(action='DESELECT')
+        bpy.ops.object.mode_set(mode="EDIT", toggle=False)
+        unique_selected_obs = [
+            ob for ob in bpy.context.objects_in_mode_unique_data if ob.type == "MESH" and ob.select_get()
+        ]
+        bpy.ops.object.mode_set(mode="OBJECT", toggle=False)
+        bpy.ops.object.select_all(action="DESELECT")
 
         if need_results:
             results = []
@@ -78,7 +79,7 @@ def multi_object_loop(func, *args, need_results=False, **kwargs):
             if multi_object_loop_stop:
                 break
             bpy.context.view_layer.objects.active = ob
-            bpy.ops.object.mode_set(mode='EDIT', toggle=False)
+            bpy.ops.object.mode_set(mode="EDIT", toggle=False)
             if "ob_num" in kwargs:
                 print("Operating on object " + str(kwargs["ob_num"]))
             if need_results:
@@ -89,8 +90,8 @@ def multi_object_loop(func, *args, need_results=False, **kwargs):
                 func(*args, **kwargs)
             if "ob_num" in kwargs:
                 kwargs["ob_num"] += 1
-            bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
-            bpy.ops.object.select_all(action='DESELECT')
+            bpy.ops.object.mode_set(mode="OBJECT", toggle=False)
+            bpy.ops.object.select_all(action="DESELECT")
 
         for ob in selected_obs:
             ob.select_set(True)
@@ -102,8 +103,13 @@ def multi_object_loop(func, *args, need_results=False, **kwargs):
             return results
 
 
-def selection_store(bm=None, uv_layers=None, return_selected_UV_faces=False, return_selected_faces_edges=False,
-                    return_selected_faces_loops=False):
+def selection_store(
+    bm=None,
+    uv_layers=None,
+    return_selected_UV_faces=False,
+    return_selected_faces_edges=False,
+    return_selected_faces_loops=False,
+):
     if bm is None:
         bm = bmesh.from_edit_mesh(bpy.context.active_object.data)
         uv_layers = bm.loops.layers.uv.verify()
@@ -113,8 +119,8 @@ def selection_store(bm=None, uv_layers=None, return_selected_UV_faces=False, ret
 
     contextViewUV = utilities_ui.GetContextViewUV()
     if contextViewUV:
-        settings.selection_uv_pivot = contextViewUV['area'].spaces[0].pivot_point
-        settings.selection_uv_pivot_pos = contextViewUV['area'].spaces[0].cursor_location.copy()
+        settings.selection_uv_pivot = contextViewUV["area"].spaces[0].pivot_point
+        settings.selection_uv_pivot_pos = contextViewUV["area"].spaces[0].cursor_location.copy()
 
     # Clear previous selection
     settings.selection_vert_indexies.clear()
@@ -182,8 +188,8 @@ def selection_store(bm=None, uv_layers=None, return_selected_UV_faces=False, ret
 
 def selection_restore(bm=None, uv_layers=None, restore_seams=False):
     mode = bpy.context.object.mode
-    if mode != 'EDIT':
-        bpy.ops.object.mode_set(mode='EDIT')
+    if mode != "EDIT":
+        bpy.ops.object.mode_set(mode="EDIT")
     if bm is None:
         bm = bmesh.from_edit_mesh(bpy.context.active_object.data)
         uv_layers = bm.loops.layers.uv.verify()
@@ -193,7 +199,7 @@ def selection_restore(bm=None, uv_layers=None, restore_seams=False):
 
     contextViewUV = utilities_ui.GetContextViewUV()
     if contextViewUV:
-        contextViewUV['area'].spaces[0].pivot_point = settings.selection_uv_pivot
+        contextViewUV["area"].spaces[0].pivot_point = settings.selection_uv_pivot
         if settings.bversion >= 3.2:
             with bpy.context.temp_override(**contextViewUV):
                 bpy.ops.uv.cursor_set(location=settings.selection_uv_pivot_pos)
@@ -202,12 +208,12 @@ def selection_restore(bm=None, uv_layers=None, restore_seams=False):
 
     # Restore seams
     if restore_seams:
-        bpy.ops.mesh.select_all(action='SELECT')
+        bpy.ops.mesh.select_all(action="SELECT")
         bpy.ops.mesh.mark_seam(clear=True)
         for edge in settings.seam_edges:
             edge.seam = True
 
-    bpy.ops.mesh.select_all(action='DESELECT')
+    bpy.ops.mesh.select_all(action="DESELECT")
 
     # Selection Mode
     bpy.context.scene.tool_settings.mesh_select_mode = settings.selection_mode
@@ -231,9 +237,9 @@ def selection_restore(bm=None, uv_layers=None, restore_seams=False):
     if contextViewUV:
         if settings.bversion >= 3.2:
             with bpy.context.temp_override(**contextViewUV):
-                bpy.ops.uv.select_all(action='DESELECT')
+                bpy.ops.uv.select_all(action="DESELECT")
         else:
-            bpy.ops.uv.select_all(contextViewUV, action='DESELECT')
+            bpy.ops.uv.select_all(contextViewUV, action="DESELECT")
     else:
         for face in bm.faces:
             for loop in face.loops:
@@ -247,7 +253,7 @@ def selection_restore(bm=None, uv_layers=None, restore_seams=False):
     # Workaround for selection not flushing properly from loops in EDGE or FACE UV Selection Mode,
     # apparently since UV edge selection support was added to the UV space
     if settings.selection_uv_mode != "VERTEX":
-        bpy.ops.uv.select_mode(type='VERTEX')
+        bpy.ops.uv.select_mode(type="VERTEX")
     bpy.context.scene.tool_settings.uv_select_mode = settings.selection_uv_mode
 
     bpy.context.view_layer.update()
@@ -255,15 +261,15 @@ def selection_restore(bm=None, uv_layers=None, restore_seams=False):
 
 
 def selected_unique_objects_in_mode_with_uv():
-    return [obj for obj in bpy.context.objects_in_mode_unique_data if obj.type == 'MESH' and obj.data.uv_layers]
+    return [obj for obj in bpy.context.objects_in_mode_unique_data if obj.type == "MESH" and obj.data.uv_layers]
 
 
 def get_UDIM_tile_coords(obj):
     udim_tile = 1001
     column = row = 0
 
-    if bpy.context.scene.texToolsSettings.UDIMs_source == 'OBJECT':
-        if obj and obj.type == 'MESH' and obj.data.uv_layers:
+    if bpy.context.scene.texToolsSettings.UDIMs_source == "OBJECT":
+        if obj and obj.type == "MESH" and obj.data.uv_layers:
             for i in range(len(obj.material_slots)):
                 slot = obj.material_slots[i]
                 if slot.material:
@@ -271,7 +277,7 @@ def get_UDIM_tile_coords(obj):
                         nodes = slot.material.node_tree.nodes
                         if nodes:
                             for node in nodes:
-                                if (node.type == 'TEX_IMAGE') and node.image and (node.image.source == 'TILED'):
+                                if (node.type == "TEX_IMAGE") and node.image and (node.image.source == "TILED"):
                                     udim_tile = node.image.tiles.active.number
                                     break
                 else:
@@ -300,7 +306,7 @@ def get_UDIM_tiles(objs):
                     nodes = slot.material.node_tree.nodes
                     if nodes:
                         for node in nodes:
-                            if node.type == 'TEX_IMAGE' and node.image and node.image.source == 'TILED':
+                            if node.type == "TEX_IMAGE" and node.image and node.image.source == "TILED":
                                 tiles.update({tile.number for tile in node.image.tiles})
     return tiles
 
@@ -336,7 +342,7 @@ def rotate_island(island, uv_layer=None, angle=0, pivot=None):
 
 
 def scale_island(island, uv_layer, scale, pivot):
-    """Scale a list of faces by 'scale_x, scale_y'. """
+    """Scale a list of faces by 'scale_x, scale_y'."""
     for face in island:
         for loop in face.loops:
             loop[uv_layer].uv = (loop[uv_layer].uv - pivot) * scale + pivot
@@ -384,7 +390,7 @@ def get_selected_uv_edges(bm, uv_layers, selected=None):
     return edges
 
 
-def get_selected_uv_faces(bm, uv_layers, rtype: 'list | set | iter' = list):
+def get_selected_uv_faces(bm, uv_layers, rtype: "list | set | iter" = list):
     """Returns selected mesh faces of selected UV's"""
     sync = bpy.context.scene.tool_settings.use_uv_select_sync
     if rtype is list:
@@ -401,7 +407,8 @@ def get_selected_uv_faces(bm, uv_layers, rtype: 'list | set | iter' = list):
         return (f for f in bm.faces if all(get_loop_selection(l, uv_layers) for l in f.loops) and f.select)
 
     raise NotImplementedError(
-        f'{rtype} is an invalid keyword argument for get_selected_uv_faces(), expect: list, set, iter')
+        f"{rtype} is an invalid keyword argument for get_selected_uv_faces(), expect: list, set, iter"
+    )
 
 
 def get_vert_to_uv(bm, uv_layers):
@@ -499,8 +506,9 @@ def get_selected_islands(bm, uv_layers, selected=True, extend_selection_to_islan
                         # then this is part of the island, and we append face to the list
                         if ll[uv_layers].uv != l[uv_layers].uv:
                             continue
-                        if (l.link_loop_next[uv_layers].uv == ll.link_loop_prev[uv_layers].uv) or \
-                                (ll.link_loop_next[uv_layers].uv == l.link_loop_prev[uv_layers].uv):
+                        if (l.link_loop_next[uv_layers].uv == ll.link_loop_prev[uv_layers].uv) or (
+                            ll.link_loop_next[uv_layers].uv == l.link_loop_prev[uv_layers].uv
+                        ):
                             temp.append(ll.face)
                             ll.face.tag = False
 
@@ -532,10 +540,10 @@ def get_selected_islands(bm, uv_layers, selected=True, extend_selection_to_islan
 
 def get_uv_context_override():
     for area in bpy.context.screen.areas:
-        if area.type == 'IMAGE_EDITOR':
+        if area.type == "IMAGE_EDITOR":
             for region in area.regions:
-                if region.type == 'WINDOW':
-                    return {'window': bpy.context.window, 'screen': bpy.context.screen, 'area': area, 'region': region}
+                if region.type == "WINDOW":
+                    return {"window": bpy.context.window, "screen": bpy.context.screen, "area": area, "region": region}
     return None
 
 
@@ -549,7 +557,7 @@ def getFacesIslands(bm, uv_layers, faces, islands, disordered_island_faces):
     with bpy.context.temp_override(**override):
         for face in faces:
             if face in disordered_island_faces:
-                bpy.ops.uv.select_all(action='DESELECT')
+                bpy.ops.uv.select_all(action="DESELECT")
                 set_loop_selection(face.loops[0], uv_layers, True)
                 bpy.ops.uv.select_linked()
 
@@ -574,14 +582,21 @@ def getAllIslands(bm, uv_layers):
     return islands
 
 
-def getSelectionIslands(bm, uv_layers, extend_selection_to_islands=False, selected_faces=None, need_faces_selected=True,
-                        restore_selected=True):
+def getSelectionIslands(
+    bm,
+    uv_layers,
+    extend_selection_to_islands=False,
+    selected_faces=None,
+    need_faces_selected=True,
+    restore_selected=True,
+):
     if selected_faces is None:
         if need_faces_selected:
             selected_faces = get_selected_uv_faces(bm, uv_layers, rtype=set)
         else:
-            selected_faces = {f for f in bm.faces if
-                              any([get_loop_selection(l, uv_layers) for l in f.loops]) and f.select}
+            selected_faces = {
+                f for f in bm.faces if any([get_loop_selection(l, uv_layers) for l in f.loops]) and f.select
+            }
     if not selected_faces:
         return []
 
@@ -605,7 +620,7 @@ def getSelectionIslands(bm, uv_layers, extend_selection_to_islands=False, select
 
         # Restore selection
         if restore_selected:
-            bpy.ops.uv.select_all(action='DESELECT')
+            bpy.ops.uv.select_all(action="DESELECT")
             set_selected_faces(selected_faces, bm, uv_layers)
 
     return islands
@@ -633,7 +648,7 @@ def getSelectedUnselectedIslands(bm, uv_layers, selected_faces=None, target_face
 
         target_islands = []
         target_faces.difference_update(disordered_islands_selected)
-        bpy.ops.uv.select_all(action='DESELECT')
+        bpy.ops.uv.select_all(action="DESELECT")
         for f in target_faces:
             set_loop_selection(f.loops[0], uv_layers, True)
         bpy.ops.uv.select_linked()
@@ -642,7 +657,7 @@ def getSelectedUnselectedIslands(bm, uv_layers, selected_faces=None, target_face
         getFacesIslands(bm, uv_layers, target_faces, target_islands, disordered_islands_targets)
 
         if restore_selected:
-            bpy.ops.uv.select_all(action='DESELECT')
+            bpy.ops.uv.select_all(action="DESELECT")
             set_selected_faces(selected_faces, bm, uv_layers)
 
     return selected_islands, target_islands
@@ -666,7 +681,7 @@ def getSelectionFacesIslands(bm, uv_layers, selected_faces_loops):
             if face not in disordered_island_faces:
                 to_remove.add(face)
             else:
-                bpy.ops.uv.select_all(action='DESELECT')
+                bpy.ops.uv.select_all(action="DESELECT")
                 set_loop_selection(face.loops[0], uv_layers, True)
                 bpy.ops.uv.select_linked()
 

@@ -6,18 +6,19 @@ from .utilities_bbox import BBox
 from mathutils import Vector
 
 
-
 class op(bpy.types.Operator):
     bl_idname = "uv.textools_island_centralize"
     bl_label = "Centralize"
-    bl_description = "Move the selected faces the closest possible to the 0-1 UV area without changes in the textured object"
-    bl_options = {'REGISTER', 'UNDO'}
-    
+    bl_description = (
+        "Move the selected faces the closest possible to the 0-1 UV area without changes in the textured object"
+    )
+    bl_options = {"REGISTER", "UNDO"}
+
     @classmethod
     def poll(cls, context):
         if not bpy.context.active_object:
             return False
-        if bpy.context.active_object.mode != 'EDIT':
+        if bpy.context.active_object.mode != "EDIT":
             return False
         return True
 
@@ -46,11 +47,11 @@ class op(bpy.types.Operator):
                     utilities_uv.translate_island(island, uv_layer, delta)
             if changed:
                 update_obj.append(obj)
-                
+
         if not update_obj:
-            return {'CANCELLED'}
+            return {"CANCELLED"}
 
         for obj in update_obj:
             bmesh.update_edit_mesh(obj.data)
 
-        return {'FINISHED'}
+        return {"FINISHED"}

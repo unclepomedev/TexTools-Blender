@@ -7,13 +7,13 @@ class op(bpy.types.Operator):
     bl_idname = "uv.textools_rectify"
     bl_label = "Rectify"
     bl_description = "Align selected UV faces or vertices to rectangular distribution"
-    bl_options = {'REGISTER', 'UNDO'}
+    bl_options = {"REGISTER", "UNDO"}
 
     @classmethod
     def poll(cls, context):
         if not context.active_object:
             return False
-        if context.active_object.mode != 'EDIT':
+        if context.active_object.mode != "EDIT":
             return False
         if not context.object.data.uv_layers:
             return False
@@ -22,7 +22,7 @@ class op(bpy.types.Operator):
     def execute(self, context):
         obj = context.active_object
         try:
-            area = next((a for a in context.screen.areas if a.type == 'IMAGE_EDITOR'), None)
+            area = next((a for a in context.screen.areas if a.type == "IMAGE_EDITOR"), None)
             if area:
                 with context.temp_override(area=area):
                     bpy.ops.uv.select_split()
@@ -36,8 +36,8 @@ class op(bpy.types.Operator):
 
         selected_faces = [f for f in bm.faces if f.select]
         if not selected_faces:
-            self.report({'WARNING'}, "No faces selected.")
-            return {'CANCELLED'}
+            self.report({"WARNING"}, "No faces selected.")
+            return {"CANCELLED"}
 
         islands = self.get_connected_components(selected_faces)
 
@@ -52,13 +52,13 @@ class op(bpy.types.Operator):
         try:
             if area:
                 with context.temp_override(area=area):
-                    bpy.ops.uv.unwrap(method='CONFORMAL', margin=0)
+                    bpy.ops.uv.unwrap(method="CONFORMAL", margin=0)
             else:
-                bpy.ops.uv.unwrap(method='CONFORMAL', margin=0)
+                bpy.ops.uv.unwrap(method="CONFORMAL", margin=0)
         except Exception:
             pass
 
-        return {'FINISHED'}
+        return {"FINISHED"}
 
     def get_connected_components(self, faces):
         faces_set = set(faces)
@@ -93,7 +93,8 @@ class op(bpy.types.Operator):
                 else:
                     internal_loops.append(loop)
 
-        if not boundary_loops: return
+        if not boundary_loops:
+            return
 
         for l in internal_loops:
             l[uv_layer].pin_uv = False
@@ -107,8 +108,10 @@ class op(bpy.types.Operator):
         width = max_x - min_x
         height = max_y - min_y
 
-        if width < 1e-5: width = 1.0
-        if height < 1e-5: height = 1.0
+        if width < 1e-5:
+            width = 1.0
+        if height < 1e-5:
+            height = 1.0
 
         for loop in boundary_loops:
             uv = loop[uv_layer].uv

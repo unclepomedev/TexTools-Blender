@@ -9,13 +9,13 @@ class op(bpy.types.Operator):
     bl_idname = "uv.textools_island_straighten_edge_loops"
     bl_label = "Straight edges chain"
     bl_description = "Straighten selected edge-chain and relax the rest of the UV Island"
-    bl_options = {'REGISTER', 'UNDO'}
+    bl_options = {"REGISTER", "UNDO"}
 
     @classmethod
     def poll(cls, context):
         if not bpy.context.active_object:
             return False
-        if bpy.context.active_object.mode != 'EDIT':
+        if bpy.context.active_object.mode != "EDIT":
             return False
         if not bpy.context.object.data.uv_layers:
             return False
@@ -26,10 +26,7 @@ class op(bpy.types.Operator):
         bm = bmesh.from_edit_mesh(obj.data)
         uv_layer = bm.loops.layers.uv.verify()
 
-        selected_faces_loops = utilities_uv.selection_store(
-            bm, uv_layer,
-            return_selected_faces_edges=True
-        )
+        selected_faces_loops = utilities_uv.selection_store(bm, uv_layer, return_selected_faces_edges=True)
 
         selected_loops = []
         if selected_faces_loops:
@@ -37,14 +34,14 @@ class op(bpy.types.Operator):
                 selected_loops.extend(loops)
 
         if not selected_loops:
-            self.report({'WARNING'}, "No UV edges selected.")
-            return {'CANCELLED'}
+            self.report({"WARNING"}, "No UV edges selected.")
+            return {"CANCELLED"}
 
         coords = [l[uv_layer].uv for l in selected_loops]
 
         if len(coords) < 2:
-            self.report({'WARNING'}, "Select at least 2 vertices.")
-            return {'CANCELLED'}
+            self.report({"WARNING"}, "Select at least 2 vertices.")
+            return {"CANCELLED"}
 
         min_x = min(c.x for c in coords)
         max_x = max(c.x for c in coords)
@@ -80,7 +77,7 @@ class op(bpy.types.Operator):
                     face.select = True
 
             try:
-                bpy.ops.uv.unwrap(method='ANGLE_BASED', margin=0)
+                bpy.ops.uv.unwrap(method="ANGLE_BASED", margin=0)
             except Exception as e:
                 print(f"Unwrap Warning: {e}")
         else:
@@ -90,4 +87,4 @@ class op(bpy.types.Operator):
             loop[uv_layer].pin_uv = original_pins[i]
 
         bmesh.update_edit_mesh(obj.data)
-        return {'FINISHED'}
+        return {"FINISHED"}

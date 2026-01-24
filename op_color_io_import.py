@@ -4,47 +4,46 @@ import string
 from . import utilities_color
 
 
-
 class op(bpy.types.Operator):
-	bl_idname = "uv.textools_color_io_import"
-	bl_label = "Import"
-	bl_description = "Import hex colors from the clipboard as current color palette"
+    bl_idname = "uv.textools_color_io_import"
+    bl_label = "Import"
+    bl_description = "Import hex colors from the clipboard as current color palette"
 
-	@classmethod
-	def poll(cls, context):
-		if bpy.context.area.ui_type != 'UV':
-			return False
-		return True
-	
+    @classmethod
+    def poll(cls, context):
+        if bpy.context.area.ui_type != "UV":
+            return False
+        return True
 
-	def execute(self, context):
-		import_colors(self, context)
-		return {'FINISHED'}
-
+    def execute(self, context):
+        import_colors(self, context)
+        return {"FINISHED"}
 
 
 def import_colors(self, context):
-	# Clipboard hex strings
-	hex_strings = bpy.context.window_manager.clipboard.split(',')
+    # Clipboard hex strings
+    hex_strings = bpy.context.window_manager.clipboard.split(",")
 
-	for i in range(len(hex_strings)):
-		hex_strings[i] = hex_strings[i].strip().strip('#')
-		if len(hex_strings[i]) != 6 or not all(c in string.hexdigits for c in hex_strings[i]):
-			# Incorrect format
-			self.report({'ERROR_INVALID_INPUT'}, f"Incorrect hex format '{hex_strings[i]}' use a #RRGGBB pattern")
-			return
-		else:
-			name = "color_ID_color_{}".format(i)
-			if hasattr(bpy.context.scene.texToolsSettings, name):
-				# Color Index exists
-				color = utilities_color.hex_to_color( hex_strings[i] )
-				setattr(bpy.context.scene.texToolsSettings, name, color)
-			else:
-				# More colors imported than supported
-				self.report({'ERROR_INVALID_INPUT'}, f"Only {i}x colors have been imported instead of {len(hex_strings)}x")
-				return
-	
-	# Set number of colors
-	bpy.context.scene.texToolsSettings.color_ID_count = len(hex_strings)
+    for i in range(len(hex_strings)):
+        hex_strings[i] = hex_strings[i].strip().strip("#")
+        if len(hex_strings[i]) != 6 or not all(c in string.hexdigits for c in hex_strings[i]):
+            # Incorrect format
+            self.report({"ERROR_INVALID_INPUT"}, f"Incorrect hex format '{hex_strings[i]}' use a #RRGGBB pattern")
+            return
+        else:
+            name = "color_ID_color_{}".format(i)
+            if hasattr(bpy.context.scene.texToolsSettings, name):
+                # Color Index exists
+                color = utilities_color.hex_to_color(hex_strings[i])
+                setattr(bpy.context.scene.texToolsSettings, name, color)
+            else:
+                # More colors imported than supported
+                self.report(
+                    {"ERROR_INVALID_INPUT"}, f"Only {i}x colors have been imported instead of {len(hex_strings)}x"
+                )
+                return
 
-	bpy.ops.ui.textools_popup('INVOKE_DEFAULT', message=f"{len(hex_strings)}x colors imported from clipboard")
+    # Set number of colors
+    bpy.context.scene.texToolsSettings.color_ID_count = len(hex_strings)
+
+    bpy.ops.ui.textools_popup("INVOKE_DEFAULT", message=f"{len(hex_strings)}x colors imported from clipboard")

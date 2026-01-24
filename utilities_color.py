@@ -43,7 +43,7 @@ def get_material(index):
 def create_material(index):
     name = get_name(index)
     material = bpy.data.materials.new(name)
-    material.preview_render_type = 'FLAT'
+    material.preview_render_type = "FLAT"
     material.use_nodes = True
     return material
 
@@ -78,7 +78,7 @@ def validate_face_colors(obj):
                 break
 
     # TODO: Check face.material_index
-    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.object.mode_set(mode="EDIT")
     bm = bmesh.from_edit_mesh(obj.data)
     for face in bm.faces:
         face.material_index %= count
@@ -86,7 +86,7 @@ def validate_face_colors(obj):
 
     # Remove material slots that are not used
     if len(obj.material_slots) > count:
-        bpy.ops.object.mode_set(mode='OBJECT')
+        bpy.ops.object.mode_set(mode="OBJECT")
         for i in range(len(obj.material_slots) - count):
             if len(obj.material_slots) > count:
                 # Remove last
@@ -98,9 +98,9 @@ def validate_face_colors(obj):
 
 
 def hex_to_color(hex):
-    hex = hex.strip('#')
+    hex = hex.strip("#")
     lv = len(hex)
-    fin = list(int(hex[i:i + lv // 3], 16) for i in range(0, lv, lv // 3))
+    fin = list(int(hex[i : i + lv // 3], 16) for i in range(0, lv, lv // 3))
     r = pow(fin[0] / 255, gamma)
     g = pow(fin[1] / 255, gamma)
     b = pow(fin[2] / 255, gamma)
@@ -126,26 +126,264 @@ def color_to_hex(color):
 def get_color_id(index, count, jitter=False):
     # Get unique color
     color = Color()
-    indexList = [0, 171, 64, 213, 32, 96, 160, 224, 16, 48, 80, 112, 144, 176, 208, 240, 8, 24, 40, 56, 72, 88, 104,
-                 120, 136, 152, 168, 184, 200, 216, 232, 248, 4, 12, 20, 28, 36, 44, 52, 60, 68, 76, 84, 92, 100, 108,
-                 116, 124,
-                 132, 140, 148, 156, 164, 172, 180, 188, 196, 204, 212, 220, 228, 236, 244, 252, 2, 6, 10, 14, 18, 22,
-                 26, 30, 34,
-                 38, 42, 46, 50, 54, 58, 62, 66, 70, 74, 78, 82, 86, 90, 94, 98, 102, 106, 110, 114, 118, 122, 126, 130,
-                 134, 138,
-                 142, 146, 150, 154, 158, 162, 166, 170, 174, 178, 182, 186, 190, 194, 198, 202, 206, 210, 214, 218,
-                 222, 226, 230,
-                 234, 238, 242, 246, 250, 254, 1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37,
-                 39, 41, 43,
-                 45, 47, 49, 51, 53, 55, 57, 59, 61, 63, 65, 67, 69, 71, 73, 75, 77, 79, 81, 83, 85, 87, 89, 91, 93, 95,
-                 97, 99, 101,
-                 103, 105, 107, 109, 111, 113, 115, 117, 119, 121, 123, 125, 127, 129, 131, 133, 135, 137, 139, 141,
-                 143, 145, 147,
-                 149, 151, 153, 155, 157, 159, 161, 163, 165, 167, 169, 128, 173, 175, 177, 179, 181, 183, 185, 187,
-                 189, 191, 193,
-                 195, 197, 199, 201, 203, 205, 207, 209, 211, 192, 215, 217, 219, 221, 223, 225, 227, 229, 231, 233,
-                 235, 237, 239,
-                 241, 243, 245, 247, 249, 251, 253, 255]
+    indexList = [
+        0,
+        171,
+        64,
+        213,
+        32,
+        96,
+        160,
+        224,
+        16,
+        48,
+        80,
+        112,
+        144,
+        176,
+        208,
+        240,
+        8,
+        24,
+        40,
+        56,
+        72,
+        88,
+        104,
+        120,
+        136,
+        152,
+        168,
+        184,
+        200,
+        216,
+        232,
+        248,
+        4,
+        12,
+        20,
+        28,
+        36,
+        44,
+        52,
+        60,
+        68,
+        76,
+        84,
+        92,
+        100,
+        108,
+        116,
+        124,
+        132,
+        140,
+        148,
+        156,
+        164,
+        172,
+        180,
+        188,
+        196,
+        204,
+        212,
+        220,
+        228,
+        236,
+        244,
+        252,
+        2,
+        6,
+        10,
+        14,
+        18,
+        22,
+        26,
+        30,
+        34,
+        38,
+        42,
+        46,
+        50,
+        54,
+        58,
+        62,
+        66,
+        70,
+        74,
+        78,
+        82,
+        86,
+        90,
+        94,
+        98,
+        102,
+        106,
+        110,
+        114,
+        118,
+        122,
+        126,
+        130,
+        134,
+        138,
+        142,
+        146,
+        150,
+        154,
+        158,
+        162,
+        166,
+        170,
+        174,
+        178,
+        182,
+        186,
+        190,
+        194,
+        198,
+        202,
+        206,
+        210,
+        214,
+        218,
+        222,
+        226,
+        230,
+        234,
+        238,
+        242,
+        246,
+        250,
+        254,
+        1,
+        3,
+        5,
+        7,
+        9,
+        11,
+        13,
+        15,
+        17,
+        19,
+        21,
+        23,
+        25,
+        27,
+        29,
+        31,
+        33,
+        35,
+        37,
+        39,
+        41,
+        43,
+        45,
+        47,
+        49,
+        51,
+        53,
+        55,
+        57,
+        59,
+        61,
+        63,
+        65,
+        67,
+        69,
+        71,
+        73,
+        75,
+        77,
+        79,
+        81,
+        83,
+        85,
+        87,
+        89,
+        91,
+        93,
+        95,
+        97,
+        99,
+        101,
+        103,
+        105,
+        107,
+        109,
+        111,
+        113,
+        115,
+        117,
+        119,
+        121,
+        123,
+        125,
+        127,
+        129,
+        131,
+        133,
+        135,
+        137,
+        139,
+        141,
+        143,
+        145,
+        147,
+        149,
+        151,
+        153,
+        155,
+        157,
+        159,
+        161,
+        163,
+        165,
+        167,
+        169,
+        128,
+        173,
+        175,
+        177,
+        179,
+        181,
+        183,
+        185,
+        187,
+        189,
+        191,
+        193,
+        195,
+        197,
+        199,
+        201,
+        203,
+        205,
+        207,
+        209,
+        211,
+        192,
+        215,
+        217,
+        219,
+        221,
+        223,
+        225,
+        227,
+        229,
+        231,
+        233,
+        235,
+        237,
+        239,
+        241,
+        243,
+        245,
+        247,
+        249,
+        251,
+        253,
+        255,
+    ]
 
     i = 0
     if index > 255:
@@ -154,7 +392,7 @@ def get_color_id(index, count, jitter=False):
             i += 1
 
     if jitter:
-        color.hsv = ((indexList[index] + 1 / (2 ** i)) / 256), 0.9, 1.0
+        color.hsv = ((indexList[index] + 1 / (2**i)) / 256), 0.9, 1.0
     else:
         color.hsv = (index / (count)), 0.9, 1.0
 
@@ -163,27 +401,27 @@ def get_color_id(index, count, jitter=False):
 
 def update_properties_tab():
     for area in bpy.context.screen.areas:
-        if area.type == 'PROPERTIES':
+        if area.type == "PROPERTIES":
             for space in area.spaces:
-                if space.type == 'PROPERTIES':
-                    if tt_settings().color_assign_mode == 'MATERIALS':
-                        space.context = 'MATERIAL'
+                if space.type == "PROPERTIES":
+                    if tt_settings().color_assign_mode == "MATERIALS":
+                        space.context = "MATERIAL"
                     else:  # mode == VERTEXCOLORS
-                        space.context = 'DATA'
+                        space.context = "DATA"
 
 
 def update_view_mode():
     for area in bpy.context.screen.areas:
-        if area.type == 'VIEW_3D':
+        if area.type == "VIEW_3D":
             for space in area.spaces:
-                if space.type == 'VIEW_3D':
-                    if space.shading.type == 'RENDERED':
+                if space.type == "VIEW_3D":
+                    if space.shading.type == "RENDERED":
                         continue
-                    elif space.shading.type == 'MATERIAL' and tt_settings().color_assign_mode == 'MATERIALS':
+                    elif space.shading.type == "MATERIAL" and tt_settings().color_assign_mode == "MATERIALS":
                         continue
-                    space.shading.type = 'SOLID'
-                    if tt_settings().color_assign_mode == 'MATERIALS':
-                        if space.shading.color_type != 'TEXTURE':
-                            space.shading.color_type = 'MATERIAL'
+                    space.shading.type = "SOLID"
+                    if tt_settings().color_assign_mode == "MATERIALS":
+                        if space.shading.color_type != "TEXTURE":
+                            space.shading.color_type = "MATERIAL"
                     else:  # mode == VERTEXCOLORS
-                        space.shading.color_type = 'VERTEX'
+                        space.shading.color_type = "VERTEX"

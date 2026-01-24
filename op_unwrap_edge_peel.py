@@ -7,162 +7,161 @@ from . import op_rectify
 from . import settings
 
 
-
 class op(bpy.types.Operator):
-	bl_idname = "uv.textools_unwrap_edge_peel"
-	bl_label = "Edge Peel"
-	bl_description = "Unwrap as a pipe along the edges selected in 3D Space"
-	bl_options = {'REGISTER', 'UNDO'}
+    bl_idname = "uv.textools_unwrap_edge_peel"
+    bl_label = "Edge Peel"
+    bl_description = "Unwrap as a pipe along the edges selected in 3D Space"
+    bl_options = {"REGISTER", "UNDO"}
 
-	@classmethod
-	def poll(cls, context):
-		if not bpy.context.active_object:
-			return False
-		if bpy.context.active_object.type != 'MESH':
-			return False
-		if bpy.context.active_object.mode != 'EDIT':
-			return False
-		if tuple(bpy.context.scene.tool_settings.mesh_select_mode)[1] == False:
-			return False
-		return True
+    @classmethod
+    def poll(cls, context):
+        if not bpy.context.active_object:
+            return False
+        if bpy.context.active_object.type != "MESH":
+            return False
+        if bpy.context.active_object.mode != "EDIT":
+            return False
+        if tuple(bpy.context.scene.tool_settings.mesh_select_mode)[1] == False:
+            return False
+        return True
 
+    def execute(self, context):
+        selection_mode = bpy.context.scene.tool_settings.uv_select_mode
+        is_sync = bpy.context.scene.tool_settings.use_uv_select_sync
+        context_override = utilities_ui.GetContextViewUV()
+        if not context_override:
+            self.report({"ERROR_INVALID_INPUT"}, "This tool requires an available UV/Image view")
+            return {"CANCELLED"}
 
-	def execute(self, context):
-		selection_mode = bpy.context.scene.tool_settings.uv_select_mode
-		is_sync = bpy.context.scene.tool_settings.use_uv_select_sync
-		context_override = utilities_ui.GetContextViewUV()
-		if not context_override:
-			self.report({'ERROR_INVALID_INPUT'}, "This tool requires an available UV/Image view")
-			return {'CANCELLED'}
+        padding = utilities_ui.get_padding()
+        utilities_uv.multi_object_loop(unwrap_edges_pipe, self, context, padding)
 
-		padding = utilities_ui.get_padding()
-		utilities_uv.multi_object_loop(unwrap_edges_pipe, self, context, padding)
+        bpy.ops.uv.average_islands_scale()
+        bpy.ops.uv.pack_islands(rotate=False, margin=padding)
 
-		bpy.ops.uv.average_islands_scale()
-		bpy.ops.uv.pack_islands(rotate=False, margin=padding)
+        # Move to active UDIM Tile TODO pack if not {'CANCELLED'} in the active UDIM Tile when implemented in Blender master (watch out for versioning)
+        udim_tile, column, row = utilities_uv.get_UDIM_tile_coords(bpy.context.active_object)
+        if udim_tile != 1001:
+            if settings.bversion >= 3.2:
+                with bpy.context.temp_override(**context_override):
+                    bpy.ops.transform.translate(value=(column, row, 0), mirror=False, use_proportional_edit=False)
+            else:
+                bpy.ops.transform.translate(
+                    context_override, value=(column, row, 0), mirror=False, use_proportional_edit=False
+                )
 
-		# Move to active UDIM Tile TODO pack if not {'CANCELLED'} in the active UDIM Tile when implemented in Blender master (watch out for versioning)
-		udim_tile, column, row = utilities_uv.get_UDIM_tile_coords(bpy.context.active_object)
-		if udim_tile != 1001:
-			if settings.bversion >= 3.2:
-				with bpy.context.temp_override(**context_override):
-					bpy.ops.transform.translate(value=(column, row, 0), mirror=False, use_proportional_edit=False)
-			else:
-				bpy.ops.transform.translate(context_override, value=(column, row, 0), mirror=False, use_proportional_edit=False)
+        # Workaround for selection not flushing properly from loops to EDGE Selection Mode, apparently since UV edge selection support was added to the UV space
+        if settings.bversion >= 3.2:
+            with bpy.context.temp_override(**context_override):
+                bpy.ops.uv.select_mode(type="VERTEX")
+        bpy.context.scene.tool_settings.uv_select_mode = selection_mode
+        if is_sync:
+            bpy.context.scene.tool_settings.use_uv_select_sync = True
 
-		# Workaround for selection not flushing properly from loops to EDGE Selection Mode, apparently since UV edge selection support was added to the UV space
-		if settings.bversion >= 3.2:
-			with bpy.context.temp_override(**context_override):
-				bpy.ops.uv.select_mode(type='VERTEX')
-		bpy.context.scene.tool_settings.uv_select_mode = selection_mode
-		if is_sync:
-			bpy.context.scene.tool_settings.use_uv_select_sync = True
-
-		return {'FINISHED'}
-
+        return {"FINISHED"}
 
 
 def unwrap_edges_pipe(self, context, padding):
-	me = bpy.context.active_object.data
-	bm = bmesh.from_edit_mesh(me)
-	uv_layers = bm.loops.layers.uv.verify()
+    me = bpy.context.active_object.data
+    bm = bmesh.from_edit_mesh(me)
+    uv_layers = bm.loops.layers.uv.verify()
 
-	# Verify that no faces are selected
-	for face in bm.faces:
-		if face.select:
-			bpy.ops.mesh.select_all(action='DESELECT')
-			self.report({'INFO'}, "No faces should be selected, only edge rings")
-			return
+    # Verify that no faces are selected
+    for face in bm.faces:
+        if face.select:
+            bpy.ops.mesh.select_all(action="DESELECT")
+            self.report({"INFO"}, "No faces should be selected, only edge rings")
+            return
 
-	# Extend loop selection
-	bpy.ops.mesh.loop_multi_select(ring=False)
-	selected_edges = {edge for edge in bm.edges if edge.select}
+    # Extend loop selection
+    bpy.ops.mesh.loop_multi_select(ring=False)
+    selected_edges = {edge for edge in bm.edges if edge.select}
 
-	if len(selected_edges) == 0:
-		bpy.ops.mesh.select_all(action='DESELECT')
-		#self.report({'ERROR_INVALID_INPUT'}, "No edges selected in the view" )
-		return
+    if len(selected_edges) == 0:
+        bpy.ops.mesh.select_all(action="DESELECT")
+        # self.report({'ERROR_INVALID_INPUT'}, "No edges selected in the view" )
+        return
 
-	bpy.ops.mesh.select_linked(delimit=set())
-	bpy.ops.mesh.mark_seam(clear=True)
-	selected_faces = {face for face in bm.faces if face.select}
+    bpy.ops.mesh.select_linked(delimit=set())
+    bpy.ops.mesh.mark_seam(clear=True)
+    selected_faces = {face for face in bm.faces if face.select}
 
-	if not selected_faces:
-		bpy.ops.mesh.select_all(action='DESELECT')
-		self.report({'INFO'}, "It's not possible to perform the unwrap on loose edges" )
-		return
+    if not selected_faces:
+        bpy.ops.mesh.select_all(action="DESELECT")
+        self.report({"INFO"}, "It's not possible to perform the unwrap on loose edges")
+        return
 
-	for edge in selected_edges:
-		edge.seam = True
+    for edge in selected_edges:
+        edge.seam = True
 
-	# "Follow active quad" kind of unwrap
-	bpy.context.scene.tool_settings.use_uv_select_sync = False
+    # "Follow active quad" kind of unwrap
+    bpy.context.scene.tool_settings.use_uv_select_sync = False
 
-	bpy.ops.mesh.select_all(action='DESELECT')
-	bpy.ops.uv.select_all(action='DESELECT')
-	for face in selected_faces:
-		face.select = True
-		for loop in face.loops:
-			utilities_uv.set_loop_selection(loop, uv_layers, True)
+    bpy.ops.mesh.select_all(action="DESELECT")
+    bpy.ops.uv.select_all(action="DESELECT")
+    for face in selected_faces:
+        face.select = True
+        for loop in face.loops:
+            utilities_uv.set_loop_selection(loop, uv_layers, True)
 
-	bpy.ops.uv.unwrap(method='ANGLE_BASED', margin=padding)
+    bpy.ops.uv.unwrap(method="ANGLE_BASED", margin=padding)
 
+    # Rectify the unwrapped islands
+    islands = utilities_uv.getSelectionIslands(
+        bm, uv_layers, extend_selection_to_islands=True, selected_faces=selected_faces
+    )
 
-	# Rectify the unwrapped islands
-	islands = utilities_uv.getSelectionIslands(bm, uv_layers, extend_selection_to_islands=True, selected_faces=selected_faces)
+    for island in islands:
+        unrectified_faces = set()
+        rectified_faces = set()
+        face_loops = {face: [loop for loop in face.loops] for face in island}
+        active = {bm.faces.active}
+        count = 3
 
-	for island in islands:
-		unrectified_faces = set()
-		rectified_faces = set()
-		face_loops = {face : [loop for loop in face.loops] for face in island}
-		active = {bm.faces.active}
-		count = 3
+        # Repeat Rectify until the result is not self-overlapping; max 3 iterations
+        while count > 0:
+            if count == 3:
+                unrectified_faces = op_rectify.main(me, bm, uv_layers, island, face_loops, return_discarded_faces=True)
+                rectified_faces = island.difference(unrectified_faces)
+                for face in unrectified_faces:
+                    face.select_set(False)
+            else:
+                for f in rectified_faces:
+                    if f not in active:
+                        bm.faces.active = f
+                        active.add(f)
+                        break
+                bpy.ops.mesh.select_all(action="DESELECT")
+                for face in rectified_faces:
+                    face.select_set(True)
+                    for loop in face.loops:
+                        utilities_uv.set_loop_selection(loop, uv_layers, True)
+                bpy.ops.uv.unwrap(method="ANGLE_BASED", margin=padding)
+                op_rectify.main(me, bm, uv_layers, island, face_loops)
 
-		# Repeat Rectify until the result is not self-overlapping; max 3 iterations
-		while count > 0:
-			if count == 3:
-				unrectified_faces = op_rectify.main(me, bm, uv_layers, island, face_loops, return_discarded_faces=True)
-				rectified_faces = island.difference(unrectified_faces)
-				for face in unrectified_faces:
-					face.select_set(False)
-			else:
-				for f in rectified_faces:
-					if f not in active:
-						bm.faces.active = f
-						active.add(f)
-						break
-				bpy.ops.mesh.select_all(action='DESELECT')
-				for face in rectified_faces:
-					face.select_set(True)
-					for loop in face.loops:
-						utilities_uv.set_loop_selection(loop, uv_layers, True)
-				bpy.ops.uv.unwrap(method='ANGLE_BASED', margin=padding)
-				op_rectify.main(me, bm, uv_layers, island, face_loops)
+            if not rectified_faces:
+                count = 0
+                continue
+            bpy.ops.uv.select_all(action="DESELECT")
+            bpy.ops.uv.select_overlap(extend=False)
+            for f in rectified_faces:
+                if utilities_uv.get_loop_selection(f.loops[0], uv_layers):
+                    count -= 1
+                else:
+                    count = 0
+                break
 
-			if not rectified_faces:
-				count = 0
-				continue
-			bpy.ops.uv.select_all(action='DESELECT')
-			bpy.ops.uv.select_overlap(extend=False)
-			for f in rectified_faces:
-				if utilities_uv.get_loop_selection(f.loops[0], uv_layers):
-					count -= 1
-				else:
-					count = 0
-				break
+        # Reproject ngons and triangular faces
+        if unrectified_faces:
+            bpy.ops.mesh.select_all(action="DESELECT")
+            for face in unrectified_faces:
+                face.select_set(True)
+                for loop in face.loops:
+                    utilities_uv.set_loop_selection(loop, uv_layers, True)
+            bpy.ops.uv.unwrap(method="ANGLE_BASED", margin=padding)
 
-		# Reproject ngons and triangular faces
-		if unrectified_faces:
-			bpy.ops.mesh.select_all(action='DESELECT')
-			for face in unrectified_faces:
-				face.select_set(True)
-				for loop in face.loops:
-					utilities_uv.set_loop_selection(loop, uv_layers, True)
-			bpy.ops.uv.unwrap(method='ANGLE_BASED', margin=padding)
-
-
-	# Restore selection
-	for face in selected_faces:
-		face.select_set(True)
-		for loop in face.loops:
-			utilities_uv.set_loop_selection(loop, uv_layers, True)
+    # Restore selection
+    for face in selected_faces:
+        face.select_set(True)
+        for loop in face.loops:
+            utilities_uv.set_loop_selection(loop, uv_layers, True)

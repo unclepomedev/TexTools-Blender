@@ -9,7 +9,7 @@ class op(bpy.types.Operator):
     bl_idname = "uv.textools_meshtex_create"
     bl_label = "UV Mesh"
     bl_description = "Create a new Mesh from the selected UVs of the active Object"
-    bl_options = {'REGISTER', 'UNDO'}
+    bl_options = {"REGISTER", "UNDO"}
 
     # apply_scale : bpy.props.BoolProperty(name="Scale to Object", default=True, description="Apply scale to the UV Mesh for its extent to be similar to the Object dimensions.")
 
@@ -17,7 +17,7 @@ class op(bpy.types.Operator):
     def poll(cls, context):
         if not bpy.context.active_object:
             return False
-        if bpy.context.active_object.type != 'MESH':
+        if bpy.context.active_object.type != "MESH":
             return False
         if not bpy.context.object.data.uv_layers:
             return False
@@ -30,8 +30,8 @@ class op(bpy.types.Operator):
 def create_uv_mesh(self, context, obj, sk_create=True, bool_scale=True, delete_unselected=True, restore_selected=False):
     # New object management
     mode = bpy.context.active_object.mode
-    bpy.ops.object.mode_set(mode='OBJECT')
-    bpy.ops.object.select_all(action='DESELECT')
+    bpy.ops.object.mode_set(mode="OBJECT")
+    bpy.ops.object.select_all(action="DESELECT")
 
     mesh_obj = obj.copy()
     mesh_obj.data = obj.data.copy()
@@ -49,26 +49,26 @@ def create_uv_mesh(self, context, obj, sk_create=True, bool_scale=True, delete_u
                 bpy.context.object.active_shape_key_index = 0
                 bpy.ops.object.shape_key_remove(all=False)
 
-    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.object.mode_set(mode="EDIT")
 
     selection_mode = bpy.context.scene.tool_settings.uv_select_mode
     pre_sync = bpy.context.scene.tool_settings.use_uv_select_sync
-    uv_area = next((a for a in context.screen.areas if a.type == 'IMAGE_EDITOR'), None)
+    uv_area = next((a for a in context.screen.areas if a.type == "IMAGE_EDITOR"), None)
     if pre_sync == True:
         bpy.context.scene.tool_settings.use_uv_select_sync = False
         if uv_area:
             try:
                 with context.temp_override(area=uv_area):
-                    bpy.ops.uv.select_all(action='SELECT')
+                    bpy.ops.uv.select_all(action="SELECT")
             except:
                 pass
 
-    if mode == 'OBJECT':
-        bpy.ops.mesh.select_all(action='SELECT')
+    if mode == "OBJECT":
+        bpy.ops.mesh.select_all(action="SELECT")
         if uv_area:
             try:
                 with context.temp_override(area=uv_area):
-                    bpy.ops.uv.select_all(action='SELECT')
+                    bpy.ops.uv.select_all(action="SELECT")
             except:
                 pass
 
@@ -91,30 +91,30 @@ def create_uv_mesh(self, context, obj, sk_create=True, bool_scale=True, delete_u
         bpy.context.scene.tool_settings.use_uv_select_sync = pre_sync
         bpy.ops.object.mode_set(mode=mode)
         if not restore_selected:
-            return {'CANCELLED'}
+            return {"CANCELLED"}
         else:  # For the Relax operator
-            return {'CANCELLED'}, None, None
+            return {"CANCELLED"}, None, None
 
     if delete_unselected:
-        if mode != 'OBJECT':
+        if mode != "OBJECT":
             delete_faces = list({face for faces in faces_by_island for face in faces}.symmetric_difference(bm.faces))
             if delete_faces:
-                bmesh.ops.delete(bm, geom=delete_faces, context='FACES')
+                bmesh.ops.delete(bm, geom=delete_faces, context="FACES")
     else:  # Needed for the Relax operator
         # for face in {face for faces in faces_by_island for face in faces}.symmetric_difference(bm.faces):
-        #	if face.select:
-        #		face.select_set(False)
+        # if face.select:
+        # face.select_set(False)
         # bpy.ops.mesh.split()
-        bpy.ops.mesh.select_all(action='DESELECT')
+        bpy.ops.mesh.select_all(action="DESELECT")
         selection_loops = {loop for faces in faces_by_island for face in faces for loop in face.loops}
         for faces in faces_by_island:
             for face in faces:
                 for edge in face.edges:
                     if not set(edge.link_loops).issubset(selection_loops):
                         edge.select_set(True)
-        bpy.ops.mesh.edge_split(type='EDGE')
+        bpy.ops.mesh.edge_split(type="EDGE")
         bmesh.update_edit_mesh(mesh_obj.data)
-        bpy.ops.mesh.select_all(action='SELECT')  # TODO REFINE
+        bpy.ops.mesh.select_all(action="SELECT")  # TODO REFINE
 
     bpy.context.scene.tool_settings.use_uv_select_sync = True
     op_select_islands_outline.select_outline(self, context, bm, uv_layers)
@@ -136,8 +136,8 @@ def create_uv_mesh(self, context, obj, sk_create=True, bool_scale=True, delete_u
 
     bm.free()
 
-    bpy.ops.mesh.edge_split(type='EDGE')
-    bpy.ops.object.mode_set(mode='OBJECT')
+    bpy.ops.mesh.edge_split(type="EDGE")
+    bpy.ops.object.mode_set(mode="OBJECT")
 
     if sk_create:
         if not mesh_obj.data.shape_keys:
@@ -146,7 +146,7 @@ def create_uv_mesh(self, context, obj, sk_create=True, bool_scale=True, delete_u
         mesh_obj.active_shape_key_index = 1
         mesh_obj.data.shape_keys.key_blocks["uv"].value = 1.0
 
-    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.object.mode_set(mode="EDIT")
 
     bm = bmesh.from_edit_mesh(mesh_obj.data)
     uv_layers = bm.loops.layers.uv.verify()
@@ -168,22 +168,22 @@ def create_uv_mesh(self, context, obj, sk_create=True, bool_scale=True, delete_u
     bpy.context.scene.tool_settings.use_uv_select_sync = pre_sync
 
     if restore_selected:  # For the Relax operator
-        bpy.ops.uv.select_all(action='DESELECT')
+        bpy.ops.uv.select_all(action="DESELECT")
         for faces in faces_by_island:
             for face in faces:
                 for loop in face.loops:
                     utilities_uv.set_loop_selection(loop, uv_layers, True)
 
-    if mode == 'EDIT' and not restore_selected:
+    if mode == "EDIT" and not restore_selected:
         # Workaround for selection not flushing properly from loops to EDGE Selection Mode, apparently since UV edge selection support was added to the UV space
-        bpy.ops.uv.select_mode(type='VERTEX')
+        bpy.ops.uv.select_mode(type="VERTEX")
         bpy.context.scene.tool_settings.uv_select_mode = selection_mode
-        bpy.ops.object.mode_set(mode='OBJECT')
+        bpy.ops.object.mode_set(mode="OBJECT")
         bpy.ops.object.mode_set(mode=mode)
     else:
         bpy.ops.object.mode_set(mode=mode)
 
     if not restore_selected:
-        return {'FINISHED'}
+        return {"FINISHED"}
     else:  # For the Relax operator
         return bm, uv_layers, faces_by_island

@@ -3,7 +3,7 @@ from .. import utilities_color
 from ..settings import tt_settings, prefs
 
 GAMMA = 2.2
-LAYER_NAME = 'TexTools_colorID'
+LAYER_NAME = "TexTools_colorID"
 
 
 class ScopedEditMode:
@@ -11,16 +11,16 @@ class ScopedEditMode:
         self.context = context
         self.active_obj = context.active_object
         self.selected_objects = context.selected_objects.copy()
-        self.previous_mode = self.active_obj.mode if self.active_obj else 'OBJECT'
+        self.previous_mode = self.active_obj.mode if self.active_obj else "OBJECT"
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self.context.view_layer.objects.active:
-            bpy.ops.object.mode_set(mode='OBJECT')
+            bpy.ops.object.mode_set(mode="OBJECT")
 
-        bpy.ops.object.select_all(action='DESELECT')
+        bpy.ops.object.select_all(action="DESELECT")
         for obj in self.selected_objects:
             try:
                 obj.select_set(True)
@@ -29,7 +29,7 @@ class ScopedEditMode:
 
         if self.active_obj and self.active_obj.name in self.context.scene.objects:
             self.context.view_layer.objects.active = self.active_obj
-            if self.previous_mode in {'EDIT', 'OBJECT', 'POSE', 'SCULPT', 'VERTEX_PAINT', 'WEIGHT_PAINT'}:
+            if self.previous_mode in {"EDIT", "OBJECT", "POSE", "SCULPT", "VERTEX_PAINT", "WEIGHT_PAINT"}:
                 try:
                     bpy.ops.object.mode_set(mode=self.previous_mode)
                 except RuntimeError:
@@ -37,26 +37,25 @@ class ScopedEditMode:
 
 
 def assign_color(operator, context, index):
-    target_objects = [obj for obj in context.selected_objects if obj.type == 'MESH']
+    target_objects = [obj for obj in context.selected_objects if obj.type == "MESH"]
 
     if not target_objects:
-        return {'CANCELLED'}
+        return {"CANCELLED"}
 
     with ScopedEditMode(context):
-
         rgba_color = _get_target_rgba(index)
 
         for obj in target_objects:
-            bpy.ops.object.mode_set(mode='OBJECT')
-            bpy.ops.object.select_all(action='DESELECT')
+            bpy.ops.object.mode_set(mode="OBJECT")
+            bpy.ops.object.select_all(action="DESELECT")
             obj.select_set(True)
             context.view_layer.objects.active = obj
 
-            bpy.ops.object.mode_set(mode='EDIT')
+            bpy.ops.object.mode_set(mode="EDIT")
             if operator.previous_mode_was_object:
-                bpy.ops.mesh.select_all(action='SELECT')
+                bpy.ops.mesh.select_all(action="SELECT")
 
-            if tt_settings().color_assign_mode == 'MATERIALS':
+            if tt_settings().color_assign_mode == "MATERIALS":
                 _assign_material(obj, index)
             else:
                 _assign_vertex_color(obj, rgba_color)
@@ -64,7 +63,7 @@ def assign_color(operator, context, index):
     utilities_color.update_properties_tab()
     utilities_color.update_view_mode()
 
-    return {'FINISHED'}
+    return {"FINISHED"}
 
 
 def _get_target_rgba(index):
@@ -88,7 +87,7 @@ def _assign_material(obj, index):
 
 
 def _assign_vertex_color(obj, rgba_color):
-    bpy.ops.object.mode_set(mode='OBJECT')
+    bpy.ops.object.mode_set(mode="OBJECT")
     layer = _get_or_create_color_layer(obj)
 
     if not layer:
@@ -112,8 +111,8 @@ def _get_or_create_color_layer(obj):
         if not layer:
             layer = mesh.color_attributes.new(
                 name=LAYER_NAME,
-                type='BYTE_COLOR',
-                domain='CORNER',
+                type="BYTE_COLOR",
+                domain="CORNER",
             )
         try:
             layer_index = mesh.color_attributes.find(LAYER_NAME)
