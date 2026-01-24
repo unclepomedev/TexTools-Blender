@@ -4,101 +4,100 @@ from . import utilities_color
 from . import utilities_ui
 from .settings import tt_settings, prefs
 
-
 gamma = 2.2
 
 
 class op(bpy.types.Operator):
-	bl_idname = "uv.textools_color_assign"
-	bl_label = "Assign Color"
-	bl_description = "Assign color to selected Objects or faces in Edit Mode"
-	bl_options = {'UNDO'}
+    bl_idname = "uv.textools_color_assign"
+    bl_label = "Assign Color"
+    bl_description = "Assign color to selected Objects or faces in Edit Mode"
+    bl_options = {'UNDO'}
 
-	index: bpy.props.IntProperty(description="Color Index", default=0)
+    index: bpy.props.IntProperty(description="Color Index", default=0)
 
-	@classmethod
-	def poll(cls, context):
-		if bpy.context.area.ui_type != 'UV':
-			return False
-		if not bpy.context.active_object:
-			return False
-		if bpy.context.active_object not in bpy.context.selected_objects:
-			return False
-		if bpy.context.active_object.type != 'MESH':
-			return False
-		return True
+    @classmethod
+    def poll(cls, context):
+        if bpy.context.area.ui_type != 'UV':
+            return False
+        if not bpy.context.active_object:
+            return False
+        if bpy.context.active_object not in bpy.context.selected_objects:
+            return False
+        if bpy.context.active_object.type != 'MESH':
+            return False
+        return True
 
-	def execute(self, context):
-		assign_color(self, context, self.index)
-		return {'FINISHED'}
+    def execute(self, context):
+        assign_color(self, context, self.index)
+        return {'FINISHED'}
 
 
 def assign_color(self, context, index):
-	selected_obj = bpy.context.selected_objects.copy()
+    selected_obj = bpy.context.selected_objects.copy()
 
-	previous_mode = 'OBJECT'
-	if len(selected_obj) == 1:
-		previous_mode = bpy.context.active_object.mode
+    previous_mode = 'OBJECT'
+    if len(selected_obj) == 1:
+        previous_mode = bpy.context.active_object.mode
 
-	for obj in selected_obj:
-		# Select object
-		bpy.ops.object.mode_set(mode='OBJECT')
-		bpy.ops.object.select_all(action='DESELECT')
-		obj.select_set(True)
-		bpy.context.view_layer.objects.active = obj
+    for obj in selected_obj:
+        # Select object
+        bpy.ops.object.mode_set(mode='OBJECT')
+        bpy.ops.object.select_all(action='DESELECT')
+        obj.select_set(True)
+        bpy.context.view_layer.objects.active = obj
 
-		# Enter Edit mode
-		bpy.ops.object.mode_set(mode='EDIT')
+        # Enter Edit mode
+        bpy.ops.object.mode_set(mode='EDIT')
 
-		if previous_mode == 'OBJECT':
-			bpy.ops.mesh.select_all(action='SELECT')
-		
-		if tt_settings().color_assign_mode == 'MATERIALS':
-			# Verify material slots
-			for _ in range(index+1):
-				if index >= len(obj.material_slots):
-					bpy.ops.object.material_slot_add()
+        if previous_mode == 'OBJECT':
+            bpy.ops.mesh.select_all(action='SELECT')
 
-			utilities_color.assign_slot(obj, index)
+        if tt_settings().color_assign_mode == 'MATERIALS':
+            # Verify material slots
+            for _ in range(index + 1):
+                if index >= len(obj.material_slots):
+                    bpy.ops.object.material_slot_add()
 
-			# Assign to selection
-			obj.active_material_index = index
-			bpy.ops.object.material_slot_assign()
+            utilities_color.assign_slot(obj, index)
 
-		else:  # mode == VERTEXCOLORS
-			color = utilities_color.get_color(index).copy()
-			if prefs().bool_color_id_vertex_color_gamma:
-				# Fix Gamma
-				color[0] = pow(color[0], 1/gamma)
-				color[1] = pow(color[1], 1/gamma)
-				color[2] = pow(color[2], 1/gamma)
+            # Assign to selection
+            obj.active_material_index = index
+            bpy.ops.object.material_slot_assign()
 
-			# Manage Vertex Color layer
-			context_override = utilities_ui.GetContextView3D()
-			if not context_override:
-				self.report({'ERROR_INVALID_INPUT'}, "This tool requires an available View3D view.")
-				return {'CANCELLED'}
-			if 'TexTools_colorID' not in obj.data.vertex_colors:
-				obj.data.vertex_colors.new(name='TexTools_colorID')
-			obj.data.vertex_colors['TexTools_colorID'].active = True
+        else:  # mode == VERTEXCOLORS
+            color = utilities_color.get_color(index).copy()
+            if prefs().bool_color_id_vertex_color_gamma:
+                # Fix Gamma
+                color[0] = pow(color[0], 1 / gamma)
+                color[1] = pow(color[1], 1 / gamma)
+                color[2] = pow(color[2], 1 / gamma)
 
-			# Paint
-			bpy.ops.object.mode_set(mode='VERTEX_PAINT')
-			bpy.context.tool_settings.vertex_paint.brush.color = color
-			bpy.context.object.data.use_paint_mask = True
-			with bpy.context.temp_override(**context_override):
-				bpy.ops.paint.vertex_color_set()
-			bpy.context.object.data.use_paint_mask = False
+            # Manage Vertex Color layer
+            context_override = utilities_ui.GetContextView3D()
+            if not context_override:
+                self.report({'ERROR_INVALID_INPUT'}, "This tool requires an available View3D view.")
+                return {'CANCELLED'}
+            if 'TexTools_colorID' not in obj.data.vertex_colors:
+                obj.data.vertex_colors.new(name='TexTools_colorID')
+            obj.data.vertex_colors['TexTools_colorID'].active = True
 
-	# restore mode
-	bpy.ops.object.mode_set(mode='OBJECT')
-	bpy.ops.object.select_all(action='DESELECT')
-	for obj in selected_obj:
-		obj.select_set(True)
-	bpy.ops.object.mode_set(mode=previous_mode)
+            # Paint
+            bpy.ops.object.mode_set(mode='VERTEX_PAINT')
+            bpy.context.tool_settings.vertex_paint.brush.color = color
+            bpy.context.object.data.use_paint_mask = True
+            with bpy.context.temp_override(**context_override):
+                bpy.ops.paint.vertex_color_set()
+            bpy.context.object.data.use_paint_mask = False
 
-	# Show Material or Data Tab
-	utilities_color.update_properties_tab()
+    # restore mode
+    bpy.ops.object.mode_set(mode='OBJECT')
+    bpy.ops.object.select_all(action='DESELECT')
+    for obj in selected_obj:
+        obj.select_set(True)
+    bpy.ops.object.mode_set(mode=previous_mode)
 
-	# Change View mode
-	utilities_color.update_view_mode()
+    # Show Material or Data Tab
+    utilities_color.update_properties_tab()
+
+    # Change View mode
+    utilities_color.update_view_mode()
