@@ -68,7 +68,8 @@ def assign_color(operator, context, index):
 
 
 def _get_target_rgba(index):
-    color = utilities_color.get_color(index).copy()
+    raw_color = utilities_color.get_color(index)
+    color = list(raw_color)
     if prefs().bool_color_id_vertex_color_gamma:
         color[0] = pow(color[0], 1 / GAMMA)
         color[1] = pow(color[1], 1 / GAMMA)
