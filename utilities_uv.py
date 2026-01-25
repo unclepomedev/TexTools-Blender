@@ -14,13 +14,13 @@ multi_object_loop_stop = False
 
 def get_loop_selection(loop, uv_layers):
     if settings.bversion >= 5.0:
-        return loop.uv_select_vert
+        return loop.vert.select
     return loop[uv_layers].select
 
 
 def set_loop_selection(loop, uv_layers, value):
     if settings.bversion >= 5.0:
-        loop.uv_select_vert = value
+        loop.vert.select = value
     else:
         loop[uv_layers].select = value
 
