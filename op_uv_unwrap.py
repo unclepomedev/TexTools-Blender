@@ -198,7 +198,11 @@ def main(self, axis):
 		# restore selection
 		luvs = (loop[uv_layer] for face in bm.faces for loop in face.loops)
 		for luv, sel_state in zip(luvs, sel_states):
-			luv.select, luv.select_edge = sel_state
+			try:
+				luv.select, luv.select_edge = sel_state
+			except AttributeError:
+				# Silently skip restoration if attributes are missing in 5.0+.
+				pass
 
 	for obj in selected_obj:
 		bmesh.update_edit_mesh(obj.data)
