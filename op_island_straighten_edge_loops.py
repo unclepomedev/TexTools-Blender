@@ -12,7 +12,8 @@ class op(bpy.types.Operator):
     def poll(cls, context):
         return (context.active_object and
                 context.active_object.type == 'MESH' and
-                context.active_object.mode == 'EDIT')
+                context.active_object.mode == 'EDIT' and
+                context.active_object.data.uv_layers)
 
     def execute(self, context):
         obj = context.active_object
