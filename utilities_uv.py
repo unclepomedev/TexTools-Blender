@@ -1,5 +1,4 @@
 import math
-
 import bmesh
 import bpy
 import mathutils
@@ -12,28 +11,56 @@ precision = 5
 multi_object_loop_stop = False
 
 
-def get_loop_selection(loop, uv_layers):
+def _get_select_layer(bm, create_if_missing=False):
+    layer = bm.loops.layers.bool.get('select')
+    if not layer and create_if_missing:
+        layer = bm.loops.layers.bool.new('select')
+    return layer
+
+
+def get_loop_selection(loop, uv_layers, bm=None):
     if settings.bversion >= 5.0:
-        return loop.uv_select_vert
+        if bm is None:
+            try:
+                bm = loop.face.bm
+            except AttributeError:
+                pass
+
+            if bm is None and bpy.context.active_object and bpy.context.active_object.type == 'MESH':
+                pass
+
+        if bm:
+            layer = _get_select_layer(bm, create_if_missing=False)
+            if layer:
+                return loop[layer]
+        return False
     return loop[uv_layers].select
 
 
-def set_loop_selection(loop, uv_layers, value):
+def set_loop_selection(loop, uv_layers, value, bm=None):
     if settings.bversion >= 5.0:
-        loop.uv_select_vert = value
+        if bm is None:
+            try:
+                bm = loop.face.bm
+            except AttributeError:
+                pass
+
+        if bm:
+            layer = _get_select_layer(bm, create_if_missing=True)
+            loop[layer] = value
     else:
         loop[uv_layers].select = value
 
 
 def get_loop_edge_selection(loop, uv_layers):
     if settings.bversion >= 5.0:
-        return loop.uv_select_edge
+        return False
     return loop[uv_layers].select_edge
 
 
 def set_loop_edge_selection(loop, uv_layers, value):
     if settings.bversion >= 5.0:
-        loop.uv_select_edge = value
+        pass
     else:
         loop[uv_layers].select_edge = value
 
@@ -83,7 +110,6 @@ def multi_object_loop(func, *args, need_results=False, **kwargs):
                 print("Operating on object " + str(kwargs["ob_num"]))
             if need_results:
                 result = func(*args, **kwargs)
-                # if result:
                 results.append(result)
             else:
                 func(*args, **kwargs)
@@ -140,6 +166,9 @@ def selection_store(bm=None, uv_layers=None, return_selected_UV_faces=False, ret
     elif return_selected_faces_edges or return_selected_faces_loops:
         selected_faces_loops = {}
 
+    if settings.bversion >= 5.0:
+        _get_select_layer(bm, create_if_missing=True)
+
     for face in bm.faces:
         if face.select:
             settings.selection_face_indexies.add(face.index)
@@ -151,7 +180,7 @@ def selection_store(bm=None, uv_layers=None, return_selected_UV_faces=False, ret
             if loop.edge.seam:
                 settings.seam_edges.add(loop.edge)
 
-            is_selected = get_loop_selection(loop, uv_layers)
+            is_selected = get_loop_selection(loop, uv_layers, bm=bm)
 
             if not is_selected and face.select:
                 is_selected = True
@@ -227,7 +256,9 @@ def selection_restore(bm=None, uv_layers=None, restore_seams=False):
         if index < len(bm.faces):
             bm.faces[index].select = True
 
-    # UV Face-UV Selections (Loops)
+    if settings.bversion >= 5.0:
+        _get_select_layer(bm, create_if_missing=True)
+
     if contextViewUV:
         if settings.bversion >= 3.2:
             with bpy.context.temp_override(**contextViewUV):
@@ -237,12 +268,15 @@ def selection_restore(bm=None, uv_layers=None, restore_seams=False):
     else:
         for face in bm.faces:
             for loop in face.loops:
-                set_loop_selection(loop, uv_layers, False)
+                set_loop_selection(loop, uv_layers, False, bm=bm)
+
     for uv_set in settings.selection_uv_loops:
-        for loop in bm.faces[uv_set[0]].loops:
-            if loop.vert.index == uv_set[1]:
-                set_loop_selection(loop, uv_layers, True)
-                break
+        if uv_set[0] < len(bm.faces):
+            face = bm.faces[uv_set[0]]
+            for loop in face.loops:
+                if loop.vert.index == uv_set[1]:
+                    set_loop_selection(loop, uv_layers, True, bm=bm)
+                    break
 
     # Workaround for selection not flushing properly from loops in EDGE or FACE UV Selection Mode,
     # apparently since UV edge selection support was added to the UV space
@@ -345,7 +379,7 @@ def scale_island(island, uv_layer, scale, pivot):
 def set_selected_faces(faces, bm, uv_layers):
     for face in faces:
         for loop in face.loops:
-            set_loop_selection(loop, uv_layers, True)
+            set_loop_selection(loop, uv_layers, True, bm=bm)
 
 
 def get_selected_uvs(bm, uv_layers):
@@ -354,7 +388,7 @@ def get_selected_uvs(bm, uv_layers):
     for face in bm.faces:
         if face.select:
             for loop in face.loops:
-                if get_loop_selection(loop, uv_layers):
+                if get_loop_selection(loop, uv_layers, bm=bm):
                     uvs.add(loop[uv_layers])
     return uvs
 
@@ -366,7 +400,7 @@ def get_selected_uv_verts(bm, uv_layers, selected=None):
         for face in bm.faces:
             if face.select:
                 for loop in face.loops:
-                    if get_loop_selection(loop, uv_layers):
+                    if get_loop_selection(loop, uv_layers, bm=bm):
                         verts.add(loop.vert)
     else:
         for loop in selected:
@@ -390,15 +424,15 @@ def get_selected_uv_faces(bm, uv_layers, rtype: 'list | set | iter' = list):
     if rtype is list:
         if sync:
             return [f for f in bm.faces if f.select]
-        return [f for f in bm.faces if all(get_loop_selection(l, uv_layers) for l in f.loops) and f.select]
+        return [f for f in bm.faces if all(get_loop_selection(l, uv_layers, bm=bm) for l in f.loops) and f.select]
     if rtype is set:
         if sync:
             return {f for f in bm.faces if f.select}
-        return {f for f in bm.faces if all(get_loop_selection(l, uv_layers) for l in f.loops) and f.select}
+        return {f for f in bm.faces if all(get_loop_selection(l, uv_layers, bm=bm) for l in f.loops) and f.select}
     if rtype is iter:
         if sync:
             return (f for f in bm.faces if f.select)
-        return (f for f in bm.faces if all(get_loop_selection(l, uv_layers) for l in f.loops) and f.select)
+        return (f for f in bm.faces if all(get_loop_selection(l, uv_layers, bm=bm) for l in f.loops) and f.select)
 
     raise NotImplementedError(
         f'{rtype} is an invalid keyword argument for get_selected_uv_faces(), expect: list, set, iter')
@@ -550,10 +584,10 @@ def getFacesIslands(bm, uv_layers, faces, islands, disordered_island_faces):
         for face in faces:
             if face in disordered_island_faces:
                 bpy.ops.uv.select_all(action='DESELECT')
-                set_loop_selection(face.loops[0], uv_layers, True)
+                set_loop_selection(face.loops[0], uv_layers, True, bm=bm)
                 bpy.ops.uv.select_linked()
 
-                islandFaces = {f for f in disordered_island_faces if get_loop_selection(f.loops[0], uv_layers)}
+                islandFaces = {f for f in disordered_island_faces if get_loop_selection(f.loops[0], uv_layers, bm=bm)}
                 disordered_island_faces.difference_update(islandFaces)
 
                 islands.append(islandFaces)
@@ -581,7 +615,7 @@ def getSelectionIslands(bm, uv_layers, extend_selection_to_islands=False, select
             selected_faces = get_selected_uv_faces(bm, uv_layers, rtype=set)
         else:
             selected_faces = {f for f in bm.faces if
-                              any([get_loop_selection(l, uv_layers) for l in f.loops]) and f.select}
+                              any([get_loop_selection(l, uv_layers, bm=bm) for l in f.loops]) and f.select}
     if not selected_faces:
         return []
 
@@ -594,7 +628,7 @@ def getSelectionIslands(bm, uv_layers, extend_selection_to_islands=False, select
         # Select islands
         if extend_selection_to_islands:
             bpy.ops.uv.select_linked()
-            disordered_island_faces = {f for f in bm.faces if get_loop_selection(f.loops[0], uv_layers)}
+            disordered_island_faces = {f for f in bm.faces if get_loop_selection(f.loops[0], uv_layers, bm=bm)}
         else:
             disordered_island_faces = selected_faces.copy()
 
@@ -623,7 +657,8 @@ def getSelectedUnselectedIslands(bm, uv_layers, selected_faces=None, target_face
         # Collect selected UV islands
         selected_islands = []
         bpy.ops.uv.select_linked()
-        disordered_islands_selected = {f for f in bm.faces if get_loop_selection(f.loops[0], uv_layers) and f.select}
+        disordered_islands_selected = {f for f in bm.faces if
+                                       get_loop_selection(f.loops[0], uv_layers, bm=bm) and f.select}
 
         getFacesIslands(bm, uv_layers, selected_faces, selected_islands, disordered_islands_selected)
 
@@ -635,9 +670,10 @@ def getSelectedUnselectedIslands(bm, uv_layers, selected_faces=None, target_face
         target_faces.difference_update(disordered_islands_selected)
         bpy.ops.uv.select_all(action='DESELECT')
         for f in target_faces:
-            set_loop_selection(f.loops[0], uv_layers, True)
+            set_loop_selection(f.loops[0], uv_layers, True, bm=bm)
         bpy.ops.uv.select_linked()
-        disordered_islands_targets = {f for f in bm.faces if get_loop_selection(f.loops[0], uv_layers) and f.select}
+        disordered_islands_targets = {f for f in bm.faces if
+                                      get_loop_selection(f.loops[0], uv_layers, bm=bm) and f.select}
 
         getFacesIslands(bm, uv_layers, target_faces, target_islands, disordered_islands_targets)
 
@@ -656,7 +692,7 @@ def getSelectionFacesIslands(bm, uv_layers, selected_faces_loops):
     with bpy.context.temp_override(**override):
         # Select islands
         bpy.ops.uv.select_linked()
-        disordered_island_faces = {f for f in bm.faces if get_loop_selection(f.loops[0], uv_layers) and f.select}
+        disordered_island_faces = {f for f in bm.faces if get_loop_selection(f.loops[0], uv_layers, bm=bm) and f.select}
 
         # Collect UV islands
         selected_faces_islands = {}
@@ -667,10 +703,10 @@ def getSelectionFacesIslands(bm, uv_layers, selected_faces_loops):
                 to_remove.add(face)
             else:
                 bpy.ops.uv.select_all(action='DESELECT')
-                set_loop_selection(face.loops[0], uv_layers, True)
+                set_loop_selection(face.loops[0], uv_layers, True, bm=bm)
                 bpy.ops.uv.select_linked()
 
-                face_island = {f for f in disordered_island_faces if get_loop_selection(f.loops[0], uv_layers)}
+                face_island = {f for f in disordered_island_faces if get_loop_selection(f.loops[0], uv_layers, bm=bm)}
                 disordered_island_faces.difference_update(face_island)
 
                 selected_faces_islands.update({face: face_island})

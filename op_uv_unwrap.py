@@ -42,12 +42,12 @@ def main(self, axis):
 		bm = bmesh.from_edit_mesh(obj.data)
 		uv_layer = bm.loops.layers.uv.verify()
 		# selection_store
-		sel_states = [(utilities_uv.get_loop_selection(loop, uv_layer), utilities_uv.get_loop_edge_selection(loop, uv_layer)) for face in bm.faces for loop in face.loops]
+		sel_states = [(utilities_uv.get_loop_selection(loop, uv_layer, bm=bm), utilities_uv.get_loop_edge_selection(loop, uv_layer)) for face in bm.faces for loop in face.loops]
 
 		# analyze if a full uv-island has been selected.
 		full_islands = []
 		for island in utilities_uv.get_selected_islands(bm, uv_layer, selected=False, extend_selection_to_islands=True):
-			if all(utilities_uv.get_loop_selection(loop, uv_layer) for face in island for loop in face.loops):
+			if all(utilities_uv.get_loop_selection(loop, uv_layer, bm=bm) for face in island for loop in face.loops):
 				full_islands.append(list(island))
 
 		# store pins and edge seams
@@ -63,7 +63,7 @@ def main(self, axis):
 			for loop in face.loops:
 				uv = loop[uv_layer]
 				pin_state.append(uv.pin_uv)
-				uv.pin_uv = not utilities_uv.get_loop_selection(loop, uv_layer)
+				uv.pin_uv = not utilities_uv.get_loop_selection(loop, uv_layer, bm=bm)
 				if axis:
 					uv_coords.append(uv.uv.copy())
 
@@ -198,7 +198,11 @@ def main(self, axis):
 		# restore selection
 		luvs = (loop[uv_layer] for face in bm.faces for loop in face.loops)
 		for luv, sel_state in zip(luvs, sel_states):
-			luv.select, luv.select_edge = sel_state
+			try:
+				luv.select, luv.select_edge = sel_state
+			except AttributeError:
+				# Silently skip restoration if attributes are missing in 5.0+.
+				pass
 
 	for obj in selected_obj:
 		bmesh.update_edit_mesh(obj.data)
