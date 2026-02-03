@@ -6,7 +6,7 @@ from bmesh.types import BMesh
 from bpy.types import Object
 
 
-def align_uv_rectify(obj: Object, bm: BMesh, uv_layer_name: str):
+def align_uv_rectify(obj: Object, bm: BMesh, uv_layer_name: str, keep_bounds: bool = False):
     """
     Rectify logic as a wrapper for Blender's native 'follow_active_quads'.
 
@@ -25,8 +25,9 @@ def align_uv_rectify(obj: Object, bm: BMesh, uv_layer_name: str):
     if not target_faces:
         return False
 
-    active_face = bm.faces.active
+    orig_bounds = _get_uv_bounds(target_faces, uv_layer) if keep_bounds else None
 
+    active_face = bm.faces.active
     if not active_face or active_face not in target_faces:
         active_face = target_faces[0]
         bm.faces.active = active_face
@@ -46,17 +47,24 @@ def align_uv_rectify(obj: Object, bm: BMesh, uv_layer_name: str):
 
     returned_bmesh: BMesh = bmesh.from_edit_mesh(mesh_data)
     uv_layer = returned_bmesh.loops.layers.uv.get(uv_layer_name)
-
     selected_faces = [f for f in returned_bmesh.faces if f.select and len(f.verts) == 4]
 
     if not selected_faces:
         return True
 
+    current_bounds = _get_uv_bounds(selected_faces, uv_layer)
+    if current_bounds:
+        _apply_uv_remap(selected_faces, uv_layer, current_bounds, orig_bounds)
+
+    bmesh.update_edit_mesh(mesh_data)
+    return True
+
+
+def _get_uv_bounds(faces, uv_layer):
     min_x, max_x = float("inf"), float("-inf")
     min_y, max_y = float("inf"), float("-inf")
-
     has_verts = False
-    for face in selected_faces:
+    for face in faces:
         for loop in face.loops:
             u, v = loop[uv_layer].uv
             if u < min_x:
@@ -68,21 +76,31 @@ def align_uv_rectify(obj: Object, bm: BMesh, uv_layer_name: str):
             if v > max_y:
                 max_y = v
             has_verts = True
+    return (min_x, max_x, min_y, max_y) if has_verts else None
 
-    if not has_verts:
-        return True
 
-    width = max_x - min_x
-    height = max_y - min_y
+def _apply_uv_remap(faces, uv_layer, src_bounds, dst_bounds=None):
+    s_min_x, s_max_x, s_min_y, s_max_y = src_bounds
+    width = s_max_x - s_min_x
+    height = s_max_y - s_min_y
     if width == 0:
         width = 1
     if height == 0:
         height = 1
 
-    for face in selected_faces:
-        for loop in face.loops:
-            u, v = loop[uv_layer].uv
-            loop[uv_layer].uv = ((u - min_x) / width, (v - min_y) / height)
-
-    bmesh.update_edit_mesh(mesh_data)
-    return True
+    if dst_bounds:
+        d_min_x, d_max_x, d_min_y, d_max_y = dst_bounds
+        d_width = d_max_x - d_min_x
+        d_height = d_max_y - d_min_y
+        for face in faces:
+            for loop in face.loops:
+                u, v = loop[uv_layer].uv
+                loop[uv_layer].uv = (
+                    ((u - s_min_x) / width) * d_width + d_min_x,
+                    ((v - s_min_y) / height) * d_height + d_min_y,
+                )
+    else:
+        for face in faces:
+            for loop in face.loops:
+                u, v = loop[uv_layer].uv
+                loop[uv_layer].uv = ((u - s_min_x) / width, (v - s_min_y) / height)

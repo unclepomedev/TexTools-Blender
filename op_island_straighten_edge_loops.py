@@ -1,11 +1,13 @@
 import bpy
 import bmesh
+from .services.rectify_service import align_uv_rectify
+from .services.straight_service import align_uv_straight_edge
 
 
 class op(bpy.types.Operator):
     bl_idname = "uv.textools_island_straighten_edge_loops"
     bl_label = "Straight edges chain"
-    bl_description = "Straighten selected UV edges"
+    bl_description = "Straighten selected UV edges (or Rectify if faces selected)"
     bl_options = {'REGISTER', 'UNDO'}
 
     @classmethod
@@ -17,77 +19,29 @@ class op(bpy.types.Operator):
 
     def execute(self, context):
         obj = context.active_object
-        bm = bmesh.from_edit_mesh(obj.data)
-        uv_layer = bm.loops.layers.uv.verify()
+        me = obj.data
+        bm = bmesh.from_edit_mesh(me)
 
-        sel_layer = bm.loops.layers.bool.get('select')
-        if not sel_layer:
-            sel_layer = bm.loops.layers.bool.new('select')
+        uv_layer_name = me.uv_layers.active.name if me.uv_layers.active else None
+        if not uv_layer_name:
+            self.report({"ERROR"}, "No UV Map found")
+            return {"CANCELLED"}
 
-        target_loops = []
+        # Check for face selection
+        selected_faces = [f for f in bm.faces if f.select]
 
-        for face in bm.faces:
-            for loop in face.loops:
-                if loop[sel_layer]:
-                    target_loops.append(loop)
-
-        if not target_loops:
-            if context.tool_settings.mesh_select_mode[2]:
-                for face in bm.faces:
-                    if face.select:
-                        for loop in face.loops:
-                            target_loops.append(loop)
-            elif context.tool_settings.mesh_select_mode[1]:
-                for edge in bm.edges:
-                    if edge.select:
-                        for loop in edge.link_loops:
-                            target_loops.append(loop)
-            elif context.tool_settings.mesh_select_mode[0]:
-                for vert in bm.verts:
-                    if vert.select:
-                        for loop in vert.link_loops:
-                            target_loops.append(loop)
-
-        target_loops = list(set(target_loops))
-
-        if not target_loops:
-            self.report({'WARNING'}, "No selection found.")
-            return {'CANCELLED'}
-
-        try:
-            coords = [l[uv_layer].uv for l in target_loops]
-        except ReferenceError:
-            self.report({'ERROR'}, "Memory Reference Error. Undo and try again.")
-            return {'CANCELLED'}
-
-        if len(coords) < 2:
-            self.report({'WARNING'}, "Select at least 2 vertices.")
-            return {'CANCELLED'}
-
-        min_x = min(c.x for c in coords)
-        max_x = max(c.x for c in coords)
-        min_y = min(c.y for c in coords)
-        max_y = max(c.y for c in coords)
-
-        is_horizontal = (max_x - min_x) > (max_y - min_y)
-
-        if is_horizontal:
-            avg_y = sum(c.y for c in coords) / len(coords)
-            target_val = avg_y
+        if selected_faces:
+            # Use Rectify logic
+            success = align_uv_rectify(obj, bm, uv_layer_name, keep_bounds=True)
+            if not success:
+                self.report({"WARNING"}, "Rectify failed. Select connected Quad faces.")
+                return {"CANCELLED"}
         else:
-            avg_x = sum(c.x for c in coords) / len(coords)
-            target_val = avg_x
+            # Use Straight logic
+            success = align_uv_straight_edge(bm, uv_layer_name)
+            if not success:
+                self.report({"WARNING"}, "Straighten failed. Select UV edges.")
+                return {"CANCELLED"}
 
-        for loop in target_loops:
-            if is_horizontal:
-                loop[uv_layer].uv.y = target_val
-            else:
-                loop[uv_layer].uv.x = target_val
-
-            loop[uv_layer].pin_uv = True
-            loop[sel_layer] = True
-
-        bmesh.update_edit_mesh(obj.data)
-        self.report({'INFO'}, "Edges Straightened & Pinned.")
-
+        bmesh.update_edit_mesh(me)
         return {'FINISHED'}
