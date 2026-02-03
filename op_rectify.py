@@ -24,7 +24,7 @@ class op(bpy.types.Operator):
         bm = bmesh.from_edit_mesh(obj.data)
         uv_layer = bm.loops.layers.uv.verify()
 
-        success = align_uv_rectify(obj, bm, uv_layer.name)
+        success = align_uv_rectify(obj, bm, uv_layer.name, True)
 
         if not success:
             self.report({'WARNING'}, "No quads selected or operation failed.")
