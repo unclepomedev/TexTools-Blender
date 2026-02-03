@@ -3,6 +3,7 @@ import bpy
 
 from . import op_select_islands_outline
 from . import utilities_uv
+from .services import uv_morph_service
 
 
 class op(bpy.types.Operator):
@@ -24,7 +25,27 @@ class op(bpy.types.Operator):
         return True
 
     def execute(self, context):
-        return create_uv_mesh(self, context, bpy.context.active_object)
+        obj = context.active_object
+        mod_name = "TT_UV_Morph"
+
+        if mod_name in obj.modifiers:
+            obj.modifiers.remove(obj.modifiers[mod_name])
+            self.report({'INFO'}, "UV Morph: OFF")
+            return {'FINISHED'}
+
+        ng = uv_morph_service.ensure_uv_morph_node_group()
+
+        mod = obj.modifiers.new(name=mod_name, type='NODES')
+        mod.node_group = ng
+        mod.show_on_cage = True
+        mod.show_in_editmode = True
+
+        active_uv = obj.data.uv_layers.active
+        if active_uv:
+            mod["Socket_3"] = active_uv.name  # Input "UV Map"
+
+        self.report({'INFO'}, "UV Morph: ON")
+        return {'FINISHED'}
 
 
 def create_uv_mesh(self, context, obj, sk_create=True, bool_scale=True, delete_unselected=True, restore_selected=False):
