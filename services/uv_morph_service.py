@@ -20,7 +20,7 @@ def ensure_uv_morph_node_group() -> bpy.types.NodeTree:
     input_factor = ng.interface.new_socket(
         name="Factor", in_out="INPUT", socket_type="NodeSocketFloat"
     )
-    input_factor.default_value = 0.0
+    input_factor.default_value = 1.0
     input_factor.min_value = 0.0
     input_factor.max_value = 1.0
 
