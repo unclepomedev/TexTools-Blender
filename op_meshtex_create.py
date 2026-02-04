@@ -25,26 +25,29 @@ class op(bpy.types.Operator):
         return True
 
     def execute(self, context):
+        if context.object.mode != 'OBJECT':
+            bpy.ops.object.mode_set(mode='OBJECT')
+
         obj = context.active_object
-        mod_name = "TT_UV_Morph"
+        service_mod_name = uv_morph_service.MOD_NAME
+        added_temp = False
 
-        if mod_name in obj.modifiers:
-            obj.modifiers.remove(obj.modifiers[mod_name])
-            self.report({'INFO'}, "UV Morph: OFF")
-            return {'FINISHED'}
+        if service_mod_name not in obj.modifiers:
+            uv_morph_service.toggle_uv_morph_modifier(obj)
+            added_temp = True
 
-        ng = uv_morph_service.ensure_uv_morph_node_group()
+        try:
+            new_obj = uv_morph_service.execute_bake_process(context, obj)
+            self.report({'INFO'}, "UV Mesh Baked: " + new_obj.name)
+        except Exception as e:
+            self.report({'ERROR'}, f"Bake failed: {str(e)}")
+            if added_temp and service_mod_name in obj.modifiers:
+                obj.modifiers.remove(obj.modifiers[service_mod_name])
+            return {'CANCELLED'}
 
-        mod = obj.modifiers.new(name=mod_name, type='NODES')
-        mod.node_group = ng
-        mod.show_on_cage = True
-        mod.show_in_editmode = True
+        if added_temp and service_mod_name in obj.modifiers:
+            obj.modifiers.remove(obj.modifiers[service_mod_name])
 
-        active_uv = obj.data.uv_layers.active
-        if active_uv:
-            mod["Socket_3"] = active_uv.name  # Input "UV Map"
-
-        self.report({'INFO'}, "UV Morph: ON")
         return {'FINISHED'}
 
 
