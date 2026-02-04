@@ -140,7 +140,7 @@ def _create_snapshot_mesh(
     bpy.ops.object.duplicate()
     new_obj = context.active_object
     if is_start:
-        new_obj.name = f"{original_obj.name}_Baked"
+        new_obj.name = f"{original_obj.name}_UV_Mesh"
 
     mod = new_obj.modifiers[MOD_NAME]
     set_modifier_factor(mod, 0.0 if is_start else 1.0)
