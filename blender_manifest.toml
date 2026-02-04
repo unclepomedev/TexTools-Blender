@@ -1,7 +1,7 @@
 schema_version = "1.0.0"
 
 id = "textools"
-version = "1.6.9"
+version = "1.6.10"
 name = "TexTools"
 tagline = "Professional UV and Texture tools for Blender."
 type = "add-on"
