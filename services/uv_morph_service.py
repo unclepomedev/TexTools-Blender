@@ -27,7 +27,7 @@ def ensure_uv_morph_node_group() -> bpy.types.NodeTree:
     input_scale = ng.interface.new_socket(
         name="Scale", in_out="INPUT", socket_type="NodeSocketFloat"
     )
-    input_scale.default_value = 5.0
+    input_scale.default_value = 1.0
     input_scale.min_value = 0.001
 
     input_uv_name = ng.interface.new_socket(
@@ -89,7 +89,19 @@ def ensure_uv_morph_node_group() -> bpy.types.NodeTree:
     return ng
 
 
-def set_modifier_factor(mod: bpy.types.NodesModifier, value: float) -> None:
+def calculate_auto_scale(obj: bpy.types.Object) -> float:
+    if not obj:
+        return 1.0
+
+    max_dim = max(obj.dimensions) if hasattr(obj, "dimensions") else 1.0
+
+    if max_dim <= 0.001:
+        max_dim = 1.0
+
+    return max_dim
+
+
+def set_modifier_input(mod: bpy.types.NodesModifier, input_name: str, value) -> None:
     """
     Sets the 'Factor' input value of a Geometry Nodes modifier.
     """
@@ -98,13 +110,13 @@ def set_modifier_factor(mod: bpy.types.NodesModifier, value: float) -> None:
         return
 
     for item in ng.interface.items_tree:
-        if item.name == "Factor" and item.item_type == "SOCKET":
+        if item.name == input_name and item.item_type == "SOCKET":
             if item.identifier in mod.keys():
                 mod[item.identifier] = value
                 return
 
-    if "Factor" in mod.keys():
-        mod["Factor"] = value
+    if input_name in mod.keys():
+        mod[input_name] = value
 
 
 def toggle_uv_morph_modifier(obj: bpy.types.Object) -> bool:
@@ -124,8 +136,10 @@ def toggle_uv_morph_modifier(obj: bpy.types.Object) -> bool:
 
     active_uv = obj.data.uv_layers.active
     if active_uv:
-        if "UV Map" in mod.keys():
-            mod["UV Map"] = active_uv.name
+        set_modifier_input(mod, "UV Map", active_uv.name)
+
+    scale_val = calculate_auto_scale(obj)
+    set_modifier_input(mod, "Scale", scale_val)
 
     return True
 
@@ -142,8 +156,21 @@ def _create_snapshot_mesh(
     if is_start:
         new_obj.name = f"{original_obj.name}_UV_Mesh"
 
+    if MOD_NAME not in new_obj.modifiers:
+        ng = ensure_uv_morph_node_group()
+        mod = new_obj.modifiers.new(name=MOD_NAME, type="NODES")
+        mod.node_group = ng
+        active_uv = new_obj.data.uv_layers.active
+        if active_uv:
+            set_modifier_input(mod, "UV Map", active_uv.name)
+
     mod = new_obj.modifiers[MOD_NAME]
-    set_modifier_factor(mod, 0.0 if is_start else 1.0)
+
+    current_scale = calculate_auto_scale(new_obj)
+    set_modifier_input(mod, "Scale", current_scale)
+
+    set_modifier_input(mod, "Factor", 0.0 if is_start else 1.0)
+
     bpy.ops.object.modifier_apply(modifier=MOD_NAME)
 
     return new_obj
